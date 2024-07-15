@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".otpEntry">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:text="@string/otp"
+        android:textSize="40sp"
+        android:layout_marginTop="100dp"/>
+
+    <EditText
+        android:id="@+id/digit"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="250dp"
+        android:layout_marginStart="30dp"
+        android:inputType="number"
+        android:maxLength="6" />
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/otpVerificationProceed"
+        android:layout_marginTop="300dp"
+        android:layout_marginStart="50dp"
+        android:text="@string/next"  />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/resendOtp"
+        android:layout_marginTop="360dp"
+        android:layout_marginStart="100dp"
+        />
+
+    <TextView
+        android:id="@+id/secondsRemaining"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/secondsRemaining"
+        android:layout_marginTop="390dp"
+        android:layout_marginStart="170dp"
+        />
+
+
+    <Button
+        android:id="@+id/otpResend"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="420dp"
+        android:layout_marginStart="120dp"
+        android:enabled="false"
+        android:text="@string/resend" />
+
+    <Button
+        android:id="@+id/otpVerificationAbort"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="300dp"
+        android:layout_marginStart="200dp"
+        android:text="@string/previous" />
+
+
+</FrameLayout>

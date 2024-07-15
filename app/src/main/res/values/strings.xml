@@ -1,0 +1,25 @@
+<resources>
+    <string name="app_name">SwapKard</string>
+    <string name="LoggedIn">You are loggedIn</string>
+    <string name="SignIn">You need to sign In</string>
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="usernamePrompt">Please Enter your Name</string>
+    <string name="userFirstName">Your First Name</string>
+    <string name="userLastName">Your Last Name</string>
+    <string name="next">Next</string>
+    <string name="previous">Prev</string>
+    <string name="PhoneNo">Enter Your PhoneNo</string>
+    <string name="Phone">Phone No</string>
+    <string name="otp">Please Enter otp</string>
+    <string name="resendOtp">Resend otp activated In:</string>
+    <string name="resend">Resend</string>
+    <string name="secondsRemaining">60</string>
+    <string name="password">Please Enter password</string>
+    <string name="passwordPrompt">password</string>
+    <string name="passwordReq">"Password requires 1 uppercase char, one lower case char, one num and at least size 6"</string>
+    <string name="signIn">Already have an account?sign In</string>
+    <string name="signInText">Go To Sign In</string>
+    <string name="passwordRequest">Please Enter your password</string>
+</resources>
+

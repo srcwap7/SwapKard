@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "138201861942",
+    "project_id": "swapkard-79b5c",
+    "storage_bucket": "swapkard-79b5c.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:138201861942:android:a7fe977549fde8b5bc2d97",
+        "android_client_info": {
+          "package_name": "com.example.SwapKard"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBanJEWyvzBwy-pVybdxJFdMs12G1M0PiY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:138201861942:android:06741be6dfbba9cabc2d97",
+        "android_client_info": {
+          "package_name": "com.example.swapkard"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBanJEWyvzBwy-pVybdxJFdMs12G1M0PiY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
