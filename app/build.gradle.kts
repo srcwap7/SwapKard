@@ -52,7 +52,6 @@ dependencies {
     implementation ("io.realm:realm-gradle-plugin:10.10.1")
     implementation("com.google.zxing:core:3.4.1")
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")
-    implementation("net.glxn.qrgen.android:qrgen-android:2.6.0")
     implementation(libs.appcompat)
     implementation(libs.material)
     implementation(libs.activity)

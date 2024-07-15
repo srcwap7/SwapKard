@@ -2,6 +2,7 @@ package com.example.swapkard;
 
 import static android.content.Context.MODE_PRIVATE;
 
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Color;
@@ -18,6 +19,8 @@ import android.widget.EditText;
 
 import org.bson.Document;
 
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.util.Arrays;
 import java.util.List;
 
@@ -33,16 +36,12 @@ import io.realm.mongodb.functions.Functions;
 import java.util.UUID;
 
 import com.google.zxing.BarcodeFormat;
-import com.google.zxing.EncodeHintType;
 import com.google.zxing.WriterException;
 import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.FileSystems;
-import java.nio.file.Path;
-import java.util.HashMap;
 import java.util.Map;
 
 public class passowrdFragment extends Fragment {
@@ -52,7 +51,8 @@ public class passowrdFragment extends Fragment {
     private static App app;
 
     private static String uniqueId;
-    private Bitmap bmp;
+
+    private static Integer status,executed;
     public passowrdFragment() {
         // Required empty public constructor
     }
@@ -70,6 +70,8 @@ public class passowrdFragment extends Fragment {
     @SuppressWarnings("unchecked")
     public void onCreate(Bundle savedInstanceState) {
         StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
+        status=0;
+        executed=0;
         StrictMode.setThreadPolicy(policy);
         super.onCreate(savedInstanceState);
         Bundle info = getArguments();
@@ -96,15 +98,42 @@ public class passowrdFragment extends Fragment {
                             bitmap.setPixel(x, y, bitMatrix.get(x, y) ? Color.BLACK : Color.WHITE);
                         }
                     }
-                    bmp=bitmap;
+                    File directory=null;
+                    if (getContext()!=null) directory = getContext().getFilesDir();
+                    File filePath = new File(directory,"qrcode.png");
+                    FileOutputStream fos=null;
+                    try {
+                        fos = new FileOutputStream(filePath);
+                        bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
+                    }
+                    catch(FileNotFoundException e){
+                        status=0;
+                        executed=1;
+                        if (e.getMessage()!=null) Log.d("IOHandle",e.getMessage());
+                    }
+                    finally{
+                        try{
+                            if (fos!=null) {
+                                fos.close();
+                                status = 1;
+                                executed = 1;
+                            }
+                        }
+                        catch(IOException e){
+                            if (e.getMessage()!=null) Log.d("IOHandle",e.getMessage());
+                            status=0;
+                            executed=1;
+                        }
+                    }
                 }
                 catch (WriterException e) {
-                    bmp=null;
+                    status=0;
+                    executed=1;
                     if (e.getMessage()!=null) Log.e("QR_CODE_GENERATOR",e.getMessage());
                 }
-
             }
         };
+        qrCodeGenerator.run();
     }
 
     @Override
@@ -113,51 +142,65 @@ public class passowrdFragment extends Fragment {
         View view = inflater.inflate(R.layout.fragment_passowrd, container, false);
         Button nextButton = view.findViewById(R.id.passwordAccept);
         Fragment currFragInst = this;
-        nextButton.setOnClickListener(v->{
-                nextButton.setEnabled(false);
-                EditText passwordField = view.findViewById(R.id.passwordField);
-                String password = passwordField.getText().toString().trim();
-                boolean flag1=false,flag2=false,flag3=false;
-                for (int i=0;i<password.length();i++){
-                    if (password.charAt(i)>='0' && password.charAt(i)<='9') flag1=true;
-                    if (password.charAt(i)>='a' && password.charAt(i)<='z') flag2=true;
-                    if (password.charAt(i)>='A' && password.charAt(i)<='Z') flag3=true;
-                }
-                if (flag1 && flag2 && flag3 && password.length()>=6){
-                    String sha256checksum = UserSignUpTools.sha256Checksum(password,this,mp);
-                    mp.put("Password",sha256checksum);
-                    List<String> args = Arrays.asList(uniqueId,
-                            mp.get("UserFirstName"),
-                            mp.get("UserLastName"),
-                            mp.get("PhoneNo"),
-                            mp.get("Salt"),
-                            mp.get("Password"));
-                    User currentUser =  app.currentUser();
-                    Functions userSignUpFunction = currentUser.getFunctions();
-                    userSignUpFunction.callFunctionAsync("UserRegistration",args,Document.class,result->{
-                        if (result.isSuccess()) {
-                            SharedPreferences userMetaDetails = getActivity().getSharedPreferences("UserMetaDetails",MODE_PRIVATE);
-                            SharedPreferences.Editor editor = userMetaDetails.edit();
-                            for (Map.Entry<String,String> elements: mp.entrySet()){
-                                editor.putString(elements.getKey(),elements.getValue());
+        nextButton.setOnClickListener(v-> {
+                    if (executed == 1) {
+                        if (status == 1) {
+                            nextButton.setEnabled(false);
+                            EditText passwordField = view.findViewById(R.id.passwordField);
+                            String password = passwordField.getText().toString().trim();
+                            boolean flag1 = false, flag2 = false, flag3 = false;
+                            for (int i = 0; i < password.length(); i++) {
+                                if (password.charAt(i) >= '0' && password.charAt(i) <= '9')
+                                    flag1 = true;
+                                if (password.charAt(i) >= 'a' && password.charAt(i) <= 'z')
+                                    flag2 = true;
+                                if (password.charAt(i) >= 'A' && password.charAt(i) <= 'Z')
+                                    flag3 = true;
                             }
-                            editor.putBoolean("isSignedUp",true);
-                            editor.putBoolean("isEmailVerified",false);
-                            editor.putBoolean("staySignedIn",true);
-                            editor.apply();
+                            if (flag1 && flag2 && flag3 && password.length() >= 6) {
+                                String sha256checksum = UserSignUpTools.sha256Checksum(password, this, mp);
+                                mp.put("Password", sha256checksum);
+                                List<String> args = Arrays.asList(uniqueId,
+                                        mp.get("UserFirstName"),
+                                        mp.get("UserLastName"),
+                                        mp.get("PhoneNo"),
+                                        mp.get("Salt"),
+                                        mp.get("Password"));
+                                User currentUser = app.currentUser();
+                                Functions userSignUpFunction = currentUser.getFunctions();
+                                userSignUpFunction.callFunctionAsync("UserRegistration", args, Document.class, result -> {
+                                    if (result.isSuccess()) {
+                                        SharedPreferences userMetaDetails = getActivity().getSharedPreferences("UserMetaDetails", MODE_PRIVATE);
+                                        SharedPreferences.Editor editor = userMetaDetails.edit();
+                                        for (Map.Entry<String, String> elements : mp.entrySet())  editor.putString(elements.getKey(), elements.getValue());
+                                        editor.putBoolean("isSignedUp", true);
+                                        editor.putBoolean("isEmailVerified", false);
+                                        editor.putBoolean("staySignedIn", true);
+                                        editor.apply();
+                                        Intent newIntent = new Intent(this.getContext(), HomeScreenCumRedirectToSignUp.class);
+                                        startActivity(newIntent);
+                                        getActivity().finish();
+                                    }else{
+                                        result.getError().printStackTrace();
+                                        Log.e("asyncCall", "failed");
+                                        nextButton.setEnabled(true);
+                                    }
+                                });
+                            } else {
+                                UserSignUpTools.showAlert(currFragInst, "Password requires 1 uppercase char, one lower case char, one num and at least size 6");
+                                nextButton.setEnabled(true);
+                            }
                         }
                         else{
-                            result.getError().printStackTrace();
-                            Log.e("asyncCall","failed");
-                            nextButton.setEnabled(true);
+                            Log.e("onClickListener","QRCode generator misbehaved");
+                            UserSignUpTools.showAlert(this,"Please relaunch the App. We had an exception");
                         }
-                    });
+                    }
+                    else{
+                        Log.e("onClickListener","QRCode generator not executed");
+                        UserSignUpTools.showAlert(this,"Please wait for 30 seconds. No need to restart or refresh app");
+                    }
                 }
-                else{
-                    UserSignUpTools.showAlert(currFragInst,"Password requires 1 uppercase char, one lower case char, one num and at least size 6");
-                    nextButton.setEnabled(true);
-                }
-            }
         );
         return view;
     }

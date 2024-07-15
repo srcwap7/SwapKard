@@ -2,7 +2,6 @@
     <string name="app_name">SwapKard</string>
     <string name="LoggedIn">You are loggedIn</string>
     <string name="SignIn">You need to sign In</string>
-    <!-- TODO: Remove or change this placeholder text -->
     <string name="hello_blank_fragment">Hello blank fragment</string>
     <string name="usernamePrompt">Please Enter your Name</string>
     <string name="userFirstName">Your First Name</string>

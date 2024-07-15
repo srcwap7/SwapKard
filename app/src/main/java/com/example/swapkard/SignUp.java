@@ -2,6 +2,8 @@ package com.example.swapkard;
 import android.app.AlertDialog;
 import android.os.Bundle;
 import android.util.Base64;
+import android.widget.Button;
+
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -56,6 +58,9 @@ class UserSignUpTools{
             @Override
             public void onVerificationFailed(@NonNull FirebaseException e) {
                 showAlert(fragment,"Please ensure you have entered a Valid Phone No");
+                Button nextbutton=null;
+                if (fragment.getActivity()!=null) nextbutton = fragment.getActivity().findViewById(R.id.phoneNoNextButton);
+                if (nextbutton!=null) nextbutton.setEnabled(true);
             }
             public void onCodeSent(@NonNull String verificationId,@NonNull PhoneAuthProvider.ForceResendingToken forceResendingToken){
                 FragmentTransaction newTransaction = activity.getSupportFragmentManager().beginTransaction();
@@ -109,23 +114,6 @@ class UserSignUpTools{
         return checksum.toString();}
         catch (Exception e){
             showAlert(fragment,"We failed to Encrypt your data! please retry");
-            return null;
-        }
-    }
-    public static String checkSumEvaluate(String str,Fragment fragment){
-        try{
-            MessageDigest digestInstance = MessageDigest.getInstance("SHA-256");
-            byte[] byteArray = digestInstance.digest(str.getBytes(StandardCharsets.UTF_8));
-            StringBuilder checksum = new StringBuilder(2*byteArray.length);
-            for (int i = 0; i < byteArray.length; i++) {
-                String hex = Integer.toHexString(0xff & byteArray[i]);
-                if(hex.length() == 1)  checksum.append('0');
-                checksum.append(hex);
-            }
-            return checksum.toString();
-        }
-        catch (Exception e){
-            showAlert(fragment,"We failed to compute hash your data! please retry");
             return null;
         }
     }
