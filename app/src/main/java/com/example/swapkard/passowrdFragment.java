@@ -2,12 +2,14 @@ package com.example.swapkard;
 
 import static android.content.Context.MODE_PRIVATE;
 
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.os.Bundle;
 import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentTransaction;
 
 import android.os.StrictMode;
 import android.util.Log;
@@ -89,7 +91,7 @@ public class passowrdFragment extends Fragment {
                 uniqueId = UUID.randomUUID().toString();
                 QRCodeWriter qrCodeWriter = new QRCodeWriter();
                 try {
-                    BitMatrix bitMatrix = qrCodeWriter.encode(uniqueId, BarcodeFormat.QR_CODE, 200, 200);
+                    BitMatrix bitMatrix = qrCodeWriter.encode(uniqueId, BarcodeFormat.QR_CODE, 500, 500);
                     int width = bitMatrix.getWidth();
                     int height = bitMatrix.getHeight();
                     Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565);
@@ -117,6 +119,7 @@ public class passowrdFragment extends Fragment {
                                 fos.close();
                                 status = 1;
                                 executed = 1;
+                                Log.d("QRCodeGenerator","No exception! Good to go");
                             }
                         }
                         catch(IOException e){
@@ -170,16 +173,41 @@ public class passowrdFragment extends Fragment {
                                 Functions userSignUpFunction = currentUser.getFunctions();
                                 userSignUpFunction.callFunctionAsync("UserRegistration", args, Document.class, result -> {
                                     if (result.isSuccess()) {
-                                        SharedPreferences userMetaDetails = getActivity().getSharedPreferences("UserMetaDetails", MODE_PRIVATE);
-                                        SharedPreferences.Editor editor = userMetaDetails.edit();
-                                        for (Map.Entry<String, String> elements : mp.entrySet())  editor.putString(elements.getKey(), elements.getValue());
-                                        editor.putBoolean("isSignedUp", true);
-                                        editor.putBoolean("isEmailVerified", false);
-                                        editor.putBoolean("staySignedIn", true);
-                                        editor.apply();
-                                        Intent newIntent = new Intent(this.getContext(), HomeScreenCumRedirectToSignUp.class);
-                                        startActivity(newIntent);
-                                        getActivity().finish();
+                                        Document doc = result.get();
+                                        if  (doc.getString("Status").equals("Done")) {
+                                            SharedPreferences userMetaDetails = getActivity().getSharedPreferences("UserMetaDetails", MODE_PRIVATE);
+                                            SharedPreferences.Editor editor = userMetaDetails.edit();
+                                            for (Map.Entry<String, String> elements : mp.entrySet())
+                                                editor.putString(elements.getKey(), elements.getValue());
+                                            editor.putBoolean("isSignedUp", true);
+                                            editor.putBoolean("isEmailVerified", false);
+                                            editor.putBoolean("staySignedIn", true);
+                                            editor.apply();
+                                            Intent newIntent = new Intent(this.getContext(), HomeScreenCumRedirectToSignUp.class);
+                                            startActivity(newIntent);
+                                            getActivity().finish();
+                                        }
+                                        else if (doc.getString("Status").equals("Present")){
+                                            AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+                                            builder.setTitle("Account Exists");
+                                            builder.setMessage("Want to login to the account?");
+                                            builder.setPositiveButton("Ok",((dialog, which) -> {
+                                                FragmentTransaction redirectToLogin = getActivity().getSupportFragmentManager().beginTransaction();
+                                                redirectToLogin.replace(R.id.fragment_username_prompt,signInPrompt.newInstance());
+                                                redirectToLogin.commit();
+                                            }));
+                                            builder.setNegativeButton("Back To SignUp",((dialog, which) -> {
+                                                FragmentTransaction redirectToSignUp = getActivity().getSupportFragmentManager().beginTransaction();
+                                                HashMap<String,String> map = new HashMap<>();
+                                                redirectToSignUp.replace(R.id.fragment_username_prompt,UsernamePrompt.newInstance(map));
+                                                redirectToSignUp.commit();
+                                            }));
+                                        }
+                                        else{
+                                            Log.e("MongoDBHandler",doc.getString("error"));
+                                            UserSignUpTools.showAlert(this,"Unexpected database error");
+                                            nextButton.setEnabled(true);
+                                        }
                                     }else{
                                         result.getError().printStackTrace();
                                         Log.e("asyncCall", "failed");
@@ -205,3 +233,4 @@ public class passowrdFragment extends Fragment {
         return view;
     }
 }
+

@@ -54,6 +54,7 @@ class UserSignUpTools{
         PhoneAuthProvider.OnVerificationStateChangedCallbacks mCallbacks = new PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
             @Override
             public void onVerificationCompleted(@NonNull PhoneAuthCredential phoneAuthCredential) {
+
             }
             @Override
             public void onVerificationFailed(@NonNull FirebaseException e) {
@@ -103,15 +104,16 @@ class UserSignUpTools{
     }
     public static String sha256Checksum(String str,Fragment fragment,HashMap<String,String>mp){
         try{
-        MessageDigest digestInstance = MessageDigest.getInstance("SHA-256");
-        byte[] byteArray = digestInstance.digest(salting(str,mp));
-        StringBuilder checksum = new StringBuilder(2*byteArray.length);
-        for (int i = 0; i < byteArray.length; i++) {
-            String hex = Integer.toHexString(0xff & byteArray[i]);
-            if(hex.length() == 1)  checksum.append('0');
-            checksum.append(hex);
+            MessageDigest digestInstance = MessageDigest.getInstance("SHA-256");
+            byte[] byteArray = digestInstance.digest(salting(str,mp));
+            StringBuilder checksum = new StringBuilder(2*byteArray.length);
+            for (int i = 0; i < byteArray.length; i++) {
+                String hex = Integer.toHexString(0xff & byteArray[i]);
+                if(hex.length() == 1)  checksum.append('0');
+                checksum.append(hex);
+            }
+            return checksum.toString();
         }
-        return checksum.toString();}
         catch (Exception e){
             showAlert(fragment,"We failed to Encrypt your data! please retry");
             return null;

@@ -46,11 +46,11 @@ realm{
     isSyncEnabled=true
 }
 dependencies {
-    implementation(platform("com.google.firebase:firebase-bom:33.1.0"))
+    implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-auth")
-    implementation ("io.realm:realm-gradle-plugin:10.10.1")
-    implementation("com.google.zxing:core:3.4.1")
+    implementation ("io.realm:realm-gradle-plugin:10.18.0")
+    implementation("com.google.zxing:core:3.5.3")
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")
     implementation(libs.appcompat)
     implementation(libs.material)

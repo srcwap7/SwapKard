@@ -20,5 +20,6 @@
     <string name="signIn">Already have an account?sign In</string>
     <string name="signInText">Go To Sign In</string>
     <string name="passwordRequest">Please Enter your password</string>
+    <string name="scanQR">Scan QR</string>
 </resources>
 
