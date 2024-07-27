@@ -1,5 +1,9 @@
 package com.example.swapkard;
+import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.Context;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.util.Base64;
 import android.widget.Button;
@@ -121,5 +125,24 @@ class UserSignUpTools{
     }
     public static String getRealmAppId() {
         return BuildConfig.REALM_APP_ID;
+    }
+
+    public static void showAlertActivity(Context context, String str){
+        AlertDialog.Builder dialogBox = new AlertDialog.Builder(context);
+        dialogBox.setTitle("Error Encountered");
+        dialogBox.setMessage(str);
+        dialogBox.setPositiveButton("ok", (dialog, which) -> {
+            dialog.dismiss();
+        });
+        dialogBox.show();
+    }
+
+    public static boolean isInternetAvailable(Context context) {
+        ConnectivityManager connectivityManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (connectivityManager != null) {
+            NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
+            return activeNetworkInfo != null && activeNetworkInfo.isConnected();
+        }
+        return false;
     }
 }

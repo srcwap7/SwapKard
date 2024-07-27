@@ -49,12 +49,16 @@ public class signInPrompt extends Fragment {
         super.onCreate(savedInstanceState);
         if (getContext()!=null) Realm.init(getContext());
         app = new App(new AppConfiguration.Builder(UserSignUpTools.getRealmAppId()).build());
+        Fragment fr = this;
         app.loginAsync(Credentials.anonymous(), new App.Callback<User>() {
             @Override
             public void onResult(App.Result<User> result) {
-                if (result.isSuccess()) Log.d("AsyncLogin","Logged In");
+                if (result.isSuccess()) {
+                    Log.d("AsyncLogin","Logged In");
+                }
                 else{
                     Log.e("AsyncLogin","Log In failed");
+                    UserSignUpTools.showAlert(fr,"Check your network settings and connection");
                 }
             }
         });

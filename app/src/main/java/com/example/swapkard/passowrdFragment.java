@@ -182,6 +182,7 @@ public class passowrdFragment extends Fragment {
                                             editor.putBoolean("isSignedUp", true);
                                             editor.putBoolean("isEmailVerified", false);
                                             editor.putBoolean("staySignedIn", true);
+                                            editor.putString("UserId",uniqueId);
                                             editor.apply();
                                             Intent newIntent = new Intent(this.getContext(), HomeScreenCumRedirectToSignUp.class);
                                             startActivity(newIntent);
