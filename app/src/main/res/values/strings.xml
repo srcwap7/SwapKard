@@ -22,5 +22,11 @@
     <string name="passwordRequest">Please Enter your password</string>
     <string name="scanQR">Scan QR</string>
     <string name="viewRequests">Requests</string>
+    <string name="APISecret">S_DDgFpsnJ-SKAB_gBvLYIVXOZc</string>
+    <string name="Home">Home</string>
+    <string name="Card"> Your Card</string>
+    <string name="Friends">Connections</string>
+    <string name="APIKey">381347452245949</string>
+    <string name="CloudName">dwiojppyb</string>
 </resources>
 

@@ -21,10 +21,15 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.SwapKard"
         tools:targetApi="31">
+
+        <service
+            android:name=".FetchRequests"
+            android:enabled="true"
+            android:exported="true" />
         <service
             android:name=".updateUIRequests"
             android:enabled="true"
-            android:exported="true"></service>
+            android:exported="true" />
 
         <activity
             android:name=".viewRequests"

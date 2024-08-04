@@ -1,5 +1,6 @@
 package com.example.swapkard;
 
+import static android.content.ContentValues.TAG;
 import static android.content.Context.MODE_PRIVATE;
 
 import android.app.AlertDialog;
@@ -7,10 +8,13 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Bundle;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentTransaction;
 
+import android.os.Handler;
+import android.os.Looper;
 import android.os.StrictMode;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -18,11 +22,13 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.Toast;
 
 import org.bson.Document;
 
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -37,6 +43,9 @@ import io.realm.mongodb.User;
 import io.realm.mongodb.functions.Functions;
 import java.util.UUID;
 
+import com.cloudinary.android.callback.ErrorInfo;
+import com.cloudinary.android.callback.UploadCallback;
+import com.google.gson.Gson;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.WriterException;
 import com.google.zxing.common.BitMatrix;
@@ -45,6 +54,10 @@ import com.google.zxing.qrcode.QRCodeWriter;
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import com.cloudinary.android.MediaManager;
 
 public class passowrdFragment extends Fragment {
 
@@ -59,7 +72,103 @@ public class passowrdFragment extends Fragment {
         // Required empty public constructor
     }
 
+    private void uploadImage(Uri fileUri,HashMap<String,String> mp,Button nextButton,Fragment fragment) {
+        MediaManager.get().upload(fileUri)
+                .unsigned("MahaRudra") 
+                .callback(new UploadCallback() {
+                    @Override
+                    public void onStart(String requestId) {
+                        Log.d(TAG, "Upload started");
+                    }
 
+                    @Override
+                    public void onProgress(String requestId, long bytes, long totalBytes) {
+                        Log.d(TAG, "Uploading: " + (bytes / totalBytes) * 100 + "%");
+                    }
+
+                    @Override
+                    public void onSuccess(String requestId, Map resultData) {
+                        Log.d(TAG, "Upload successful");
+                        mp.put("Public_id", (String) resultData.get("public_id"));
+                        User currentUser = app.currentUser();
+                        Functions userSignUpFunction = currentUser.getFunctions();
+                        List<String> args = Arrays.asList(uniqueId,
+                                mp.get("UserFirstName"),
+                                mp.get("UserLastName"),
+                                mp.get("PhoneNo"),
+                                mp.get("Salt"),
+                                mp.get("Password"),mp.get("Public_id"));
+                        userSignUpFunction.callFunctionAsync("UserRegistration", args, Document.class, result -> {
+                            if (result.isSuccess()) {
+                                Document doc = result.get();
+                                if  (doc.getString("status").equals("Done")) {
+                                    SharedPreferences userMetaDetails = getActivity().getSharedPreferences("UserMetaDetails", MODE_PRIVATE);
+                                    SharedPreferences.Editor editor = userMetaDetails.edit();
+                                    for (Map.Entry<String, String> elements : mp.entrySet())
+                                        editor.putString(elements.getKey(), elements.getValue());
+                                    editor.putBoolean("isSignedUp", true);
+                                    editor.putBoolean("isEmailVerified", false);
+                                    editor.putBoolean("staySignedIn", true);
+                                    ArrayList<Bitmap> arr = new ArrayList<>();
+                                    String json = new Gson().toJson(arr);
+                                    editor.putString("PendingRequestsCards",json);
+                                    editor.putString("UserId",uniqueId);
+                                    editor.apply();
+                                    Intent newIntent = new Intent(getContext(), HomeScreenCumRedirectToSignUp.class);
+                                    startActivity(newIntent);
+                                    getActivity().finish();
+                                }
+                                else if (doc.getString("status").equals("Present")){
+                                    Log.e("MongoDBHandler","Account With same PhoneNo present");
+                                    nextButton.setEnabled(true);
+                                    Handler handler = new Handler(Looper.getMainLooper());
+                                    handler.post(new Runnable(){
+                                        @Override
+                                        public void run() {
+                                            AlertDialog.Builder builder = new AlertDialog.Builder(fragment.getActivity());
+                                            builder.setTitle("Account Exists");
+                                            builder.setMessage("Want to login to the account?");
+                                            builder.setPositiveButton("Ok",((dialog, which) -> {
+                                                FragmentTransaction redirectToLogin = getActivity().getSupportFragmentManager().beginTransaction();
+                                                redirectToLogin.replace(R.id.fragment_username_prompt,signInPrompt.newInstance());
+                                                redirectToLogin.commit();
+                                            }));
+                                            builder.setNegativeButton("Back To SignUp",((dialog, which) -> {
+                                                FragmentTransaction redirectToSignUp = getActivity().getSupportFragmentManager().beginTransaction();
+                                                HashMap<String,String> map = new HashMap<>();
+                                                redirectToSignUp.replace(R.id.fragment_username_prompt,UsernamePrompt.newInstance(map));
+                                                redirectToSignUp.commit();
+                                            }));
+                                        }
+                                    });
+                                }
+                                else{
+                                    Log.e("MongoDBHandler",doc.getString("error"));
+                                    Toast.makeText(getContext(),"Error Encountered",Toast.LENGTH_SHORT).show();
+                                    nextButton.setEnabled(true);
+                                }
+                            }else{
+                                result.getError().printStackTrace();
+                                Toast.makeText(getContext(),"We Could not store your data to cloud",Toast.LENGTH_SHORT).show();
+                                Log.e("asyncCall", "failed");
+                                nextButton.setEnabled(true);
+                            }
+                        });
+                    }
+
+                    @Override
+                    public void onError(String requestId, ErrorInfo error) {
+                        Log.e(TAG, "Upload error: " + error.getDescription());
+
+                    }
+
+                    @Override
+                    public void onReschedule(String requestId, ErrorInfo error) {
+                        Log.d(TAG, "Upload rescheduled");
+                    }
+                })
+                .dispatch();
+    }
     public static passowrdFragment newInstance(HashMap<String,String> map) {
         passowrdFragment fragment = new passowrdFragment();
         Bundle args = new Bundle();
@@ -85,6 +194,11 @@ public class passowrdFragment extends Fragment {
                 else Log.e("AsyncLogin","Login_Failed_GO_Fuck_Yourself");
             }
         );
+        Map<String,String> config = new HashMap<>();
+        config.put("cloud_name",getString(R.string.CloudName));
+        config.put("api_key",getString(R.string.APIKey));
+        config.put("api_secret",getString(R.string.APISecret));
+        if (getActivity()!=null) MediaManager.init(getActivity(),config);
         Runnable qrCodeGenerator = new Runnable() {
             @Override
             public void run() {
@@ -136,7 +250,15 @@ public class passowrdFragment extends Fragment {
                 }
             }
         };
-        qrCodeGenerator.run();
+        ExecutorService executorService = Executors.newSingleThreadExecutor();
+        executorService.execute(qrCodeGenerator);
+        Runnable createCard = new Runnable(){
+            @Override
+            public void run() {
+               ImageManipulation.manipulateImage(R.drawable.card_default_template,1290,380,2260,770,58, 67, 60,181, 207, 173,185,getActivity(),mp.get("UserFirstName")+" "+mp.get("UserLastName"));
+            }
+        };
+        executorService.execute(createCard);
     }
 
     @Override
@@ -163,58 +285,11 @@ public class passowrdFragment extends Fragment {
                             if (flag1 && flag2 && flag3 && password.length() >= 6) {
                                 String sha256checksum = UserSignUpTools.sha256Checksum(password, this, mp);
                                 mp.put("Password", sha256checksum);
-                                List<String> args = Arrays.asList(uniqueId,
-                                        mp.get("UserFirstName"),
-                                        mp.get("UserLastName"),
-                                        mp.get("PhoneNo"),
-                                        mp.get("Salt"),
-                                        mp.get("Password"));
-                                User currentUser = app.currentUser();
-                                Functions userSignUpFunction = currentUser.getFunctions();
-                                userSignUpFunction.callFunctionAsync("UserRegistration", args, Document.class, result -> {
-                                    if (result.isSuccess()) {
-                                        Document doc = result.get();
-                                        if  (doc.getString("Status").equals("Done")) {
-                                            SharedPreferences userMetaDetails = getActivity().getSharedPreferences("UserMetaDetails", MODE_PRIVATE);
-                                            SharedPreferences.Editor editor = userMetaDetails.edit();
-                                            for (Map.Entry<String, String> elements : mp.entrySet())
-                                                editor.putString(elements.getKey(), elements.getValue());
-                                            editor.putBoolean("isSignedUp", true);
-                                            editor.putBoolean("isEmailVerified", false);
-                                            editor.putBoolean("staySignedIn", true);
-                                            editor.putString("UserId",uniqueId);
-                                            editor.apply();
-                                            Intent newIntent = new Intent(this.getContext(), HomeScreenCumRedirectToSignUp.class);
-                                            startActivity(newIntent);
-                                            getActivity().finish();
-                                        }
-                                        else if (doc.getString("Status").equals("Present")){
-                                            AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
-                                            builder.setTitle("Account Exists");
-                                            builder.setMessage("Want to login to the account?");
-                                            builder.setPositiveButton("Ok",((dialog, which) -> {
-                                                FragmentTransaction redirectToLogin = getActivity().getSupportFragmentManager().beginTransaction();
-                                                redirectToLogin.replace(R.id.fragment_username_prompt,signInPrompt.newInstance());
-                                                redirectToLogin.commit();
-                                            }));
-                                            builder.setNegativeButton("Back To SignUp",((dialog, which) -> {
-                                                FragmentTransaction redirectToSignUp = getActivity().getSupportFragmentManager().beginTransaction();
-                                                HashMap<String,String> map = new HashMap<>();
-                                                redirectToSignUp.replace(R.id.fragment_username_prompt,UsernamePrompt.newInstance(map));
-                                                redirectToSignUp.commit();
-                                            }));
-                                        }
-                                        else{
-                                            Log.e("MongoDBHandler",doc.getString("error"));
-                                            UserSignUpTools.showAlert(this,"Unexpected database error");
-                                            nextButton.setEnabled(true);
-                                        }
-                                    }else{
-                                        result.getError().printStackTrace();
-                                        Log.e("asyncCall", "failed");
-                                        nextButton.setEnabled(true);
-                                    }
-                                });
+                                File currentDirectory = null;
+                                if (getActivity()!=null) currentDirectory = getActivity().getFilesDir();
+                                File userCardFile = new File(currentDirectory,"card.png");
+                                Uri uri = Uri.fromFile(userCardFile);
+                                uploadImage(uri,mp,nextButton,currFragInst);
                             } else {
                                 UserSignUpTools.showAlert(currFragInst, "Password requires 1 uppercase char, one lower case char, one num and at least size 6");
                                 nextButton.setEnabled(true);

@@ -83,10 +83,13 @@ public class signInPrompt extends Fragment {
                         String x = doc.getString("Status");
                         if (x.equals("Present")){
                             Log.d("AsyncFind","PhoneNoMatched");
+                            String UserFirstName = doc.getString("UserFirstName");
+                            String UserLastname = doc.getString("UserLastName");
+                            String UserId = doc.getString("UserId");
                             String Salt=doc.getString("Salt");
                             String Password=doc.getString("Hashed_password");
                             FragmentTransaction loadPassword = getActivity().getSupportFragmentManager().beginTransaction();
-                            loadPassword.replace(R.id.fragment_username_prompt,signInPassword.newInstance(Salt,Password));
+                            loadPassword.replace(R.id.fragment_username_prompt,signInPassword.newInstance(Salt,Password,UserFirstName,UserLastname,UserId,phoneNo));
                             loadPassword.addToBackStack(null);
                             loadPassword.commit();
                         }
