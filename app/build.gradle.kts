@@ -16,7 +16,6 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
-
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String","REALM_APP_ID","\"${System.getenv("REALM_APP_ID")}\"")
         buildConfigField("String","REALM_DATABASE","\"${System.getenv("MONGODB_USER_CRED_DATABASE")}\"")

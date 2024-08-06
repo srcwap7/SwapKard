@@ -8,10 +8,8 @@ import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
 import android.util.Log;
-import android.widget.ImageView;
 
 import com.cloudinary.android.MediaManager;
-import com.cloudinary.android.download.picasso.PicassoDownloadRequestBuilderFactory;
 import com.squareup.picasso.Picasso;
 import com.squareup.picasso.Target;
 
@@ -22,7 +20,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import io.realm.Realm;
 import io.realm.mongodb.App;
 import io.realm.mongodb.User;
 import io.realm.mongodb.functions.Functions;
@@ -35,6 +32,8 @@ public class FetchRequests extends Service {
 
     private String id;
     private Functions functions;
+
+    private boolean cloudinaryInitialization;
 
     private String last;
 
@@ -62,6 +61,7 @@ public class FetchRequests extends Service {
                     if (status.equals("Done")) {
                         ArrayList<Document> new_connections = (ArrayList<Document>)  doc.get("array");
                         if (new_connections!=null) {
+                            if (new_connections.size()>0) Log.d("Receiver","Received New Connections");
                             for (int i = 0; i < new_connections.size(); i++) {
                                 ArrayList<String> arrayList = new ArrayList<>();
                                 arrayList.add(new_connections.get(i).getString("senderId"));
@@ -72,6 +72,12 @@ public class FetchRequests extends Service {
                                         new Target() {
                                             @Override
                                             public void onBitmapLoaded(Bitmap bitmap, Picasso.LoadedFrom from) {
+                                                Log.d("BitmapLoader","Bitmap  Loaded");
+                                                Intent broadcastIntent = new Intent("com.example.broadcast.NEW_REQUEST_GOT");
+                                                broadcastIntent.setPackage(getPackageName());
+                                                broadcastIntent.putExtra("bitmapArray",invitees_card);
+                                                broadcastIntent.putExtra("pendingInvites",pending_invites);
+                                                sendBroadcast(broadcastIntent);
                                                 invitees_card.add(bitmap);
                                             }
 
@@ -88,7 +94,7 @@ public class FetchRequests extends Service {
                                 );
                                 pending_invites.add(arrayList);
                             }
-                            if (pending_invites!=null) last = pending_invites.get(pending_invites.size() - 1).get(0);
+                            if (pending_invites.size()>0) last = pending_invites.get(pending_invites.size() - 1).get(0);
                         }
                     } else {
                         Log.e("Listener", doc.getString("error"));
@@ -100,15 +106,21 @@ public class FetchRequests extends Service {
             Log.e("Internet Manager","No Internet Available!" );
         }
     }
+    @SuppressWarnings("unchecked")
     public int onStartCommand(Intent intent, int flags, int startId){
         Log.e("ServiceManager","Started");
-        Map<String,String> config = new HashMap<>();
-        config.put("cloud_name",getString(R.string.CloudName));
-        config.put("api_key",getString(R.string.APIKey));
-        config.put("api_secret",getString(R.string.APISecret));
-        MediaManager.init(getApplicationContext(),config);
         pending_invites=(ArrayList<ArrayList<String>>)intent.getExtras().get("Array");
+        if (pending_invites.size()>0) last = pending_invites.get(pending_invites.size()-1).get(0);
+        else last=null;
         invitees_card=(ArrayList<Bitmap>)intent.getExtras().get("BitmapArray");
+        cloudinaryInitialization=intent.getExtras().getBoolean("cloudinaryInitialization");
+        if (!cloudinaryInitialization) {
+            Map<String, String> config = new HashMap<>();
+            config.put("cloud_name", getString(R.string.CloudName));
+            config.put("api_key", getString(R.string.APIKey));
+            config.put("api_secret", getString(R.string.APISecret));
+            MediaManager.init(getApplicationContext(), config);
+        }
         id = (String) intent.getExtras().get("UserId");
         App app = HomeScreenCumRedirectToSignUp.getApp();
         User user = app.currentUser();
@@ -116,11 +128,13 @@ public class FetchRequests extends Service {
         Log.d("AppUser",user.getId());
         last=null;
         Handler handler = new Handler();
+
         Runnable runnable = new Runnable() {
             @Override
             public void run() {
                 synchronize();
                 Log.d("Looper","Running");
+                Log.d("Last",last+"a");
                 handler.postDelayed(this,5000);
             }
         };

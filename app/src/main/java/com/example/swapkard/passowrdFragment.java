@@ -7,6 +7,7 @@ import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
@@ -67,6 +68,8 @@ public class passowrdFragment extends Fragment {
 
     private static String uniqueId;
 
+    private static Handler handler;
+
     private static Integer status,executed;
     public passowrdFragment() {
         // Required empty public constructor
@@ -88,9 +91,10 @@ public class passowrdFragment extends Fragment {
 
                     @Override
                     public void onSuccess(String requestId, Map resultData) {
-                        Log.d(TAG, "Upload successful");
-                        mp.put("Public_id", (String) resultData.get("public_id"));
                         User currentUser = app.currentUser();
+                        String Public_id = (String) resultData.get("public_id");
+                        Log.d(TAG, "Upload successful");
+                        mp.put("Public_id",Public_id);
                         Functions userSignUpFunction = currentUser.getFunctions();
                         List<String> args = Arrays.asList(uniqueId,
                                 mp.get("UserFirstName"),
@@ -102,6 +106,7 @@ public class passowrdFragment extends Fragment {
                             if (result.isSuccess()) {
                                 Document doc = result.get();
                                 if  (doc.getString("status").equals("Done")) {
+                                    Log.d(TAG,"MongoDb done");
                                     SharedPreferences userMetaDetails = getActivity().getSharedPreferences("UserMetaDetails", MODE_PRIVATE);
                                     SharedPreferences.Editor editor = userMetaDetails.edit();
                                     for (Map.Entry<String, String> elements : mp.entrySet())
@@ -111,17 +116,20 @@ public class passowrdFragment extends Fragment {
                                     editor.putBoolean("staySignedIn", true);
                                     ArrayList<Bitmap> arr = new ArrayList<>();
                                     String json = new Gson().toJson(arr);
+                                    ArrayList<ArrayList<String>> pending_invites = new ArrayList<ArrayList<String>>();
+                                    String newJson = new Gson().toJson(pending_invites);
+                                    editor.putString("PendingInvites",newJson);
                                     editor.putString("PendingRequestsCards",json);
                                     editor.putString("UserId",uniqueId);
                                     editor.apply();
                                     Intent newIntent = new Intent(getContext(), HomeScreenCumRedirectToSignUp.class);
+                                    newIntent.putExtra("cloudinaryInitialization",true);
                                     startActivity(newIntent);
                                     getActivity().finish();
                                 }
                                 else if (doc.getString("status").equals("Present")){
                                     Log.e("MongoDBHandler","Account With same PhoneNo present");
                                     nextButton.setEnabled(true);
-                                    Handler handler = new Handler(Looper.getMainLooper());
                                     handler.post(new Runnable(){
                                         @Override
                                         public void run() {
@@ -139,19 +147,32 @@ public class passowrdFragment extends Fragment {
                                                 redirectToSignUp.replace(R.id.fragment_username_prompt,UsernamePrompt.newInstance(map));
                                                 redirectToSignUp.commit();
                                             }));
+                                            builder.show();
                                         }
                                     });
                                 }
                                 else{
                                     Log.e("MongoDBHandler",doc.getString("error"));
-                                    Toast.makeText(getContext(),"Error Encountered",Toast.LENGTH_SHORT).show();
-                                    nextButton.setEnabled(true);
+                                    handler.post(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            Toast.makeText(getContext(),"Error Encountered",Toast.LENGTH_SHORT).show();
+                                            nextButton.setEnabled(true);
+                                        }
+                                    });
                                 }
                             }else{
                                 result.getError().printStackTrace();
-                                Toast.makeText(getContext(),"We Could not store your data to cloud",Toast.LENGTH_SHORT).show();
-                                Log.e("asyncCall", "failed");
-                                nextButton.setEnabled(true);
+                                handler.post(
+                                        new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                Toast.makeText(getContext(),"We Could not store your data to cloud",Toast.LENGTH_SHORT).show();
+                                                Log.e("asyncCall", "failed");
+                                                nextButton.setEnabled(true);
+                                            }
+                                        }
+                                );
                             }
                         });
                     }
@@ -186,12 +207,13 @@ public class passowrdFragment extends Fragment {
         StrictMode.setThreadPolicy(policy);
         super.onCreate(savedInstanceState);
         Bundle info = getArguments();
+        handler=new Handler(Looper.getMainLooper());
         if (info != null) mp = (HashMap<String, String>) info.getSerializable(param1);
         if (getContext()!=null) Realm.init(getContext());
         app = new App(new AppConfiguration.Builder(UserSignUpTools.getRealmAppId()).build());
         app.loginAsync(Credentials.anonymous(), result -> {
                 if (result.isSuccess())  Log.d("Login","Logged In Successfully");
-                else Log.e("AsyncLogin","Login_Failed_GO_Fuck_Yourself");
+                else Log.e("AsyncLogin","Login Failed");
             }
         );
         Map<String,String> config = new HashMap<>();
@@ -254,8 +276,8 @@ public class passowrdFragment extends Fragment {
         executorService.execute(qrCodeGenerator);
         Runnable createCard = new Runnable(){
             @Override
-            public void run() {
-               ImageManipulation.manipulateImage(R.drawable.card_default_template,1290,380,2260,770,58, 67, 60,181, 207, 173,185,getActivity(),mp.get("UserFirstName")+" "+mp.get("UserLastName"));
+            public void run(){
+                ImageManipulation.manipulateImage(R.drawable.card_default_template,1290,380,2260,770,58, 67, 60,181, 207, 173,185,getActivity(),mp.get("UserFirstName")+" "+mp.get("UserLastName"));
             }
         };
         executorService.execute(createCard);

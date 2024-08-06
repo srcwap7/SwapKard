@@ -9,6 +9,7 @@ import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
@@ -18,6 +19,7 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.Typeface;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -75,6 +77,8 @@ public class HomeScreenCumRedirectToSignUp extends AppCompatActivity {
 
     private FetchRequests fetchRequests;
 
+    private BroadcastReceiver upDateReceiver;
+
     private Intent serviceIntent;
 
     private ArrayList<ArrayList<String>> pending_invites;
@@ -82,6 +86,10 @@ public class HomeScreenCumRedirectToSignUp extends AppCompatActivity {
     private ArrayList<Bitmap> invitees_card;
 
     private Activity activity;
+
+    private boolean cloudinaryInitialization;
+
+    private Handler handler;
 
 
     public static App getApp(){
@@ -123,6 +131,7 @@ public class HomeScreenCumRedirectToSignUp extends AppCompatActivity {
                                 serviceIntent.putExtra("Array",pending_invites);
                                 serviceIntent.putExtra("UserId",id);
                                 serviceIntent.putExtra("BitmapArray",invitees_card);
+                                serviceIntent.putExtra("cloudinaryInitialization",cloudinaryInitialization);
                                 startService(serviceIntent);
                                 bindService(serviceIntent,serviceConnection,Context.BIND_AUTO_CREATE);
                             }
@@ -132,6 +141,7 @@ public class HomeScreenCumRedirectToSignUp extends AppCompatActivity {
                         Log.d("Login", "Logged in successfully. Auth ok");
                     } else {
                         status = 2;
+
                         Log.e("Login", "Auth failed");
                     }
             });
@@ -146,19 +156,32 @@ public class HomeScreenCumRedirectToSignUp extends AppCompatActivity {
         User curr = app.currentUser();
         Functions func = curr.getFunctions();
         List<Object> args = Arrays.asList(qrcode,id,cloudinaryId);
+        Log.d("Lambda",cloudinaryId+"   "+qrcode+"    "+id);
         func.callFunctionAsync("sendRequest", args, Document.class, result1 -> {
                     if (result1.isSuccess()) {
                         Document details = result1.get();
                         String status = details.getString("status");
                         if (status.equals("Success"))  Log.d("sendRequestHandler", "Boom! you have done great");
                         else{
-                            Toast.makeText(getApplicationContext(),"Some Error occurred",Toast.LENGTH_SHORT).show();
-                            Log.e("sendRequestHandler","Error in sending request");
+                            handler.post(
+                                    new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            Toast.makeText(getApplicationContext(),"Some Error occurred",Toast.LENGTH_SHORT).show();
+                                            Log.e("sendRequestHandler","Error in sending request");
+                                        }
+                                    }
+                            );
                         }
 
                     } else{
-                        Log.e("sendRequestHandler", "Unexpected error");
-                        Toast.makeText(getApplicationContext(),"check your connection!",Toast.LENGTH_SHORT).show();
+                        handler.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                Log.e("sendRequestHandler", "Unexpected error");
+                                Toast.makeText(getApplicationContext(),"check your connection!",Toast.LENGTH_SHORT).show();
+                            }
+                        });
                     }
                 }
         );
@@ -186,8 +209,6 @@ public class HomeScreenCumRedirectToSignUp extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
-        this.status = 0;
-        activity=this;
         SharedPreferences userMetaDetails = getSharedPreferences("UserMetaDetails", MODE_PRIVATE);
         boolean sessionSet = userMetaDetails.getBoolean("isSignedUp", false);
         if (!sessionSet) {
@@ -196,10 +217,20 @@ public class HomeScreenCumRedirectToSignUp extends AppCompatActivity {
             startActivity(redirectToSignUp);
             finish();
         }
+        handler = new Handler(Looper.getMainLooper());
+        status = 0;
+        activity=this;
+        Intent intent = getIntent();
+        if (intent.getExtras()!=null)  cloudinaryInitialization = intent.getExtras().getBoolean("cloudinaryInitialization", false);
+        else cloudinaryInitialization=false;
         Context context = getApplicationContext();
         String json = userMetaDetails.getString("PendingRequestsCards",null);
-        Type type = new TypeToken<ArrayList<String>>() {}.getType();
+        Type type = new TypeToken<ArrayList<Bitmap>>() {}.getType();
         invitees_card = new Gson().fromJson(json, type);
+        String inviteId = userMetaDetails.getString("PendingInvites",null);
+        Type type2 = new TypeToken<ArrayList<ArrayList<String>>>() {}.getType();
+        pending_invites = new Gson().fromJson(inviteId,type2);
+
         Runnable performLoginOnEntry = new Runnable() {
                 @Override
                 public void run() {
@@ -245,8 +276,15 @@ public class HomeScreenCumRedirectToSignUp extends AppCompatActivity {
                                 });
                             }
                             else{
-                                Log.e("QRScanner","QR scanning unsuccessful");
-                                Toast.makeText(context,"Some Error Occurred",Toast.LENGTH_SHORT).show();
+                                handler.post(
+                                        new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                Log.e("QRScanner","QR scanning unsuccessful");
+                                                Toast.makeText(context,"Some Error Occurred",Toast.LENGTH_SHORT).show();
+                                            }
+                                        }
+                                );
                             }
                         }
                     }
@@ -268,16 +306,23 @@ public class HomeScreenCumRedirectToSignUp extends AppCompatActivity {
             viewRequest.setOnClickListener(
                     v->{
                         Intent newIntent = new Intent(getApplicationContext(),viewRequests.class);
+                        newIntent.putExtra("bitmapArray",invitees_card);
+                        newIntent.putExtra("pendingInvites",pending_invites);
                         startActivity(newIntent);
-                        finish();
                     }
             );
-            BroadcastReceiver upDateReceiver = new BroadcastReceiver() {
+            upDateReceiver = new BroadcastReceiver() {
                 @Override
                 public void onReceive(Context context, Intent intent) {
-
+                    Log.d("BroadCastReceiver","Running OK");
+                    invitees_card = (ArrayList<Bitmap>) intent.getExtras().get("bitmapArray");
+                    pending_invites = (ArrayList<ArrayList<String>>) intent.getExtras().get("pendingInvites");
                 }
             };
+            IntentFilter filter = new IntentFilter("com.example.broadcast.NEW_REQUEST_GOT");
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                registerReceiver(upDateReceiver, filter,RECEIVER_NOT_EXPORTED);
+            }
             ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
                 Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
                 v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
