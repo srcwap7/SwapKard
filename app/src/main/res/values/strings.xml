@@ -1,5 +1,7 @@
 <resources>
     <string name="app_name">SwapKard</string>
+    <string name="userGreeting">We are glad to have you on board</string>
+    <string name="prompt">Please Enter your Details</string>
     <string name="LoggedIn">You are loggedIn</string>
     <string name="SignIn">You need to sign In</string>
     <string name="hello_blank_fragment">Hello blank fragment</string>
@@ -18,15 +20,33 @@
     <string name="passwordPrompt">password</string>
     <string name="passwordReq">"Password requires 1 uppercase char, one lower case char, one num and at least size 6"</string>
     <string name="signIn">Already have an account?sign In</string>
-    <string name="signInText">Go To Sign In</string>
+    <string name="signInText">Sign In</string>
     <string name="passwordRequest">Please Enter your password</string>
     <string name="scanQR">Scan QR</string>
     <string name="viewRequests">Requests</string>
     <string name="APISecret">S_DDgFpsnJ-SKAB_gBvLYIVXOZc</string>
     <string name="Home">Home</string>
+    <string name="QR">THIS IS YOUR QRCODE!LET OTHERS SCAN YOUR QR AND CONNECT TO YOU</string>
     <string name="Card"> Your Card</string>
     <string name="Friends">Connections</string>
     <string name="APIKey">381347452245949</string>
     <string name="CloudName">dwiojppyb</string>
+    <string name="title_activity_testing">TestingActivity</string>
+    <string name="navigation_drawer_open">Open navigation drawer</string>
+    <string name="navigation_drawer_close">Close navigation drawer</string>
+    <string name="nav_header_title">Android Studio</string>
+    <string name="nav_header_subtitle">android.studio@android.com</string>
+    <string name="nav_header_desc">Navigation header</string>
+    <string name="action_settings">Settings</string>
+    <string name="SuperUser">Arpan Goswami</string>
+    <string name="menu_home">Home</string>
+    <string name="menu_gallery">Gallery</string>
+    <string name="menu_slideshow">Slideshow</string>
+    <string name="Accept">Accept</string>
+    <string name="Reject">Reject</string>
+    <string name="uploadPhoto">Upload Profile photo</string>
+    <string name="upload">Upload</string>
+    <string name="call">Call</string>
+    <string name="Email">Email</string>
 </resources>
 

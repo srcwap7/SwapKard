@@ -1,12 +1,17 @@
 package com.example.swapkard;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.util.Base64;
+import android.util.Log;
 import android.widget.Button;
+import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
@@ -16,26 +21,114 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentTransaction;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+
+import com.cloudinary.Cloudinary;
+import com.cloudinary.android.MediaManager;
+import com.cloudinary.utils.ObjectUtils;
 import com.google.firebase.FirebaseException;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.PhoneAuthCredential;
 import com.google.firebase.auth.PhoneAuthOptions;
 import com.google.firebase.auth.PhoneAuthProvider;
 
+import org.bson.Document;
+
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import java.security.MessageDigest;
 
+import io.realm.Realm;
+import io.realm.mongodb.App;
+import io.realm.mongodb.AppConfiguration;
+import io.realm.mongodb.Credentials;
+import io.realm.mongodb.functions.Functions;
+
 public class SignUp extends AppCompatActivity {
+    private  App app;
+    private  boolean isConnectedToRealm;
+
+    private  boolean isConnectedToCloudinary;
+
+    private BroadcastReceiver broadcastReceiver;
+
+    private void performRealmLogin(){
+        Realm.init(getApplicationContext());
+        app = new App( new AppConfiguration.Builder(UserSignUpTools.getRealmAppId()).build());
+        app.loginAsync(Credentials.anonymous(),result ->{
+            if (result.isSuccess()){
+                isConnectedToRealm=true;
+                Functions functions = app.currentUser().getFunctions();
+                Log.d("DEBUG_A",functions.toString());
+                Log.d("RealmConnectionManager","Connection To Realm Done!");
+                Intent intent = new Intent("com.example.connectedToRealm");
+                LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(intent);
+            }
+            else{
+                Log.d("RealmConnectionManager","Connection To Realm Unsuccessful");
+            }
+        });
+    }
+
+    public App getApp(){
+        return app;
+    }
+    public boolean checkRealmConnection(){
+        return isConnectedToRealm;
+    }
+
+    public  boolean checkCloudinaryConnection(){
+        return isConnectedToCloudinary;
+    }
+    private void performCloudinaryLogin(){
+        try{
+            Cloudinary cloudinary = MediaManager.get().getCloudinary();
+            if (cloudinary!=null) isConnectedToCloudinary=true;
+        }
+        catch(Exception e) {
+            Map<String, String> config = new HashMap<>();
+            config.put("cloud_name", getString(R.string.CloudName));
+            config.put("api_key", getString(R.string.APIKey));
+            config.put("api_secret", getString(R.string.APISecret));
+            MediaManager.init(getApplicationContext(), config);
+            isConnectedToCloudinary = true;
+            Log.d("cloudinaryConnectionManger", "Connected To Cloudinary");
+            Intent intent = new Intent("com.example.connectedToCloudinary");
+            LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(intent);
+        }
+    }
+
+    protected void onStart(){
+        registerReceiver(broadcastReceiver,new IntentFilter("android.net.conn.CONNECTIVITY_CHANGE"));
+        super.onStart();
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_sign_up);
+        isConnectedToCloudinary=false;
+        isConnectedToRealm=false;
+        broadcastReceiver = new BroadcastReceiver() {
+            int counter=0;
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (UserSignUpTools.isInternetAvailable(getApplicationContext())) {
+                    if (!isConnectedToRealm) performRealmLogin();
+                    if (!isConnectedToCloudinary) performCloudinaryLogin();
+                }
+                else{
+                    if (counter==0) Toast.makeText(getApplicationContext(),"Could not connect to Backend",Toast.LENGTH_SHORT).show();
+                    counter=1;
+                }
+            }
+        };
         if (savedInstanceState==null){
             HashMap<String,String> mp = new HashMap<>();
             FragmentTransaction usernameLoader = getSupportFragmentManager().beginTransaction();
@@ -48,6 +141,12 @@ public class SignUp extends AppCompatActivity {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
+    }
+
+    @Override
+    protected void onDestroy() {
+        LocalBroadcastManager.getInstance(getApplicationContext()).unregisterReceiver(broadcastReceiver);
+        super.onDestroy();
     }
 }
 

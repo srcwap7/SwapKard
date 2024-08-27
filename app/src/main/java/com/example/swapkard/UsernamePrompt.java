@@ -11,6 +11,8 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 
+import com.google.android.material.textfield.TextInputEditText;
+
 import java.util.HashMap;
 
 public class UsernamePrompt extends Fragment {
@@ -45,9 +47,9 @@ public class UsernamePrompt extends Fragment {
         View view = inflater.inflate(R.layout.fragment_username_prompt, container, false);
         Button nextbutton = view.findViewById(R.id.JumpToPhoneNo);
         nextbutton.setOnClickListener( v -> {
-                    EditText userFirstNameField = view.findViewById(R.id.userFirstNameField);
+                    TextInputEditText userFirstNameField = view.findViewById(R.id.userFirstNameField);
                     String userFirstName = userFirstNameField.getText().toString().trim();
-                    EditText userLastNameField = view.findViewById(R.id.userLastNameField);
+                    TextInputEditText userLastNameField = view.findViewById(R.id.userLastNameField);
                     String userLastName = userLastNameField.getText().toString().trim();
                     boolean flag = true;
                     if (userFirstName.isEmpty() || userLastName.isEmpty()) UserSignUpTools.showAlert(this, "Your first or last name cant be empty");

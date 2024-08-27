@@ -2,27 +2,21 @@ package com.example.swapkard;
 
 import static android.content.ContentValues.TAG;
 import static android.content.Context.MODE_PRIVATE;
-
-import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import androidx.fragment.app.Fragment;
-import androidx.fragment.app.FragmentTransaction;
 
 import android.os.Handler;
 import android.os.Looper;
-import android.os.StrictMode;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.Toast;
 
 import org.bson.Document;
@@ -36,16 +30,14 @@ import java.util.List;
 
 import java.util.HashMap;
 
-import io.realm.Realm;
 import io.realm.mongodb.App;
-import io.realm.mongodb.AppConfiguration;
-import io.realm.mongodb.Credentials;
 import io.realm.mongodb.User;
 import io.realm.mongodb.functions.Functions;
 import java.util.UUID;
 
 import com.cloudinary.android.callback.ErrorInfo;
 import com.cloudinary.android.callback.UploadCallback;
+import com.google.android.material.textfield.TextInputEditText;
 import com.google.gson.Gson;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.WriterException;
@@ -64,6 +56,8 @@ public class passowrdFragment extends Fragment {
 
     HashMap<String,String> mp;
     private static final String param1 = "HashMap";
+
+    private static int isPendingInvitesCreated,isConnectionCreated;
     private static App app;
 
     private static String uniqueId;
@@ -71,124 +65,136 @@ public class passowrdFragment extends Fragment {
     private static Handler handler;
 
     private static Integer status,executed;
+
+    private static boolean isConnectedToRealm,isConnectedToCloudinary;
     public passowrdFragment() {
         // Required empty public constructor
     }
 
-    private void uploadImage(Uri fileUri,HashMap<String,String> mp,Button nextButton,Fragment fragment) {
-        MediaManager.get().upload(fileUri)
-                .unsigned("MahaRudra") 
-                .callback(new UploadCallback() {
-                    @Override
-                    public void onStart(String requestId) {
-                        Log.d(TAG, "Upload started");
-                    }
+    private void uploadImage(Uri Thumbnail,Uri fileUri,HashMap<String,String> mp,Button nextButton,Fragment fragment) {
+        if (isConnectedToCloudinary) {
+            MediaManager.get().upload(Thumbnail).unsigned("MahaRudra").callback(new UploadCallback() {
+                @Override
+                public void onStart(String requestId) {
 
-                    @Override
-                    public void onProgress(String requestId, long bytes, long totalBytes) {
-                        Log.d(TAG, "Uploading: " + (bytes / totalBytes) * 100 + "%");
-                    }
+                }
 
-                    @Override
-                    public void onSuccess(String requestId, Map resultData) {
-                        User currentUser = app.currentUser();
-                        String Public_id = (String) resultData.get("public_id");
-                        Log.d(TAG, "Upload successful");
-                        mp.put("Public_id",Public_id);
-                        Functions userSignUpFunction = currentUser.getFunctions();
-                        List<String> args = Arrays.asList(uniqueId,
-                                mp.get("UserFirstName"),
-                                mp.get("UserLastName"),
-                                mp.get("PhoneNo"),
-                                mp.get("Salt"),
-                                mp.get("Password"),mp.get("Public_id"));
-                        userSignUpFunction.callFunctionAsync("UserRegistration", args, Document.class, result -> {
-                            if (result.isSuccess()) {
-                                Document doc = result.get();
-                                if  (doc.getString("status").equals("Done")) {
-                                    Log.d(TAG,"MongoDb done");
-                                    SharedPreferences userMetaDetails = getActivity().getSharedPreferences("UserMetaDetails", MODE_PRIVATE);
-                                    SharedPreferences.Editor editor = userMetaDetails.edit();
-                                    for (Map.Entry<String, String> elements : mp.entrySet())
-                                        editor.putString(elements.getKey(), elements.getValue());
-                                    editor.putBoolean("isSignedUp", true);
-                                    editor.putBoolean("isEmailVerified", false);
-                                    editor.putBoolean("staySignedIn", true);
-                                    ArrayList<Bitmap> arr = new ArrayList<>();
-                                    String json = new Gson().toJson(arr);
-                                    ArrayList<ArrayList<String>> pending_invites = new ArrayList<ArrayList<String>>();
-                                    String newJson = new Gson().toJson(pending_invites);
-                                    editor.putString("PendingInvites",newJson);
-                                    editor.putString("PendingRequestsCards",json);
-                                    editor.putString("UserId",uniqueId);
-                                    editor.apply();
-                                    Intent newIntent = new Intent(getContext(), HomeScreenCumRedirectToSignUp.class);
-                                    newIntent.putExtra("cloudinaryInitialization",true);
-                                    startActivity(newIntent);
-                                    getActivity().finish();
+                @Override
+                public void onProgress(String requestId, long bytes, long totalBytes) {
+
+                }
+
+                @Override
+                public void onSuccess(String requestId, Map resultData) {
+                    String thumbnailId = (String) resultData.get("public_id");
+                    MediaManager.get().upload(fileUri)
+                            .unsigned("MahaRudra")
+                            .callback(new UploadCallback() {
+                                @Override
+                                public void onStart(String requestId) {
+                                    Log.d(TAG, "Upload started");
                                 }
-                                else if (doc.getString("status").equals("Present")){
-                                    Log.e("MongoDBHandler","Account With same PhoneNo present");
-                                    nextButton.setEnabled(true);
-                                    handler.post(new Runnable(){
-                                        @Override
-                                        public void run() {
-                                            AlertDialog.Builder builder = new AlertDialog.Builder(fragment.getActivity());
-                                            builder.setTitle("Account Exists");
-                                            builder.setMessage("Want to login to the account?");
-                                            builder.setPositiveButton("Ok",((dialog, which) -> {
-                                                FragmentTransaction redirectToLogin = getActivity().getSupportFragmentManager().beginTransaction();
-                                                redirectToLogin.replace(R.id.fragment_username_prompt,signInPrompt.newInstance());
-                                                redirectToLogin.commit();
-                                            }));
-                                            builder.setNegativeButton("Back To SignUp",((dialog, which) -> {
-                                                FragmentTransaction redirectToSignUp = getActivity().getSupportFragmentManager().beginTransaction();
-                                                HashMap<String,String> map = new HashMap<>();
-                                                redirectToSignUp.replace(R.id.fragment_username_prompt,UsernamePrompt.newInstance(map));
-                                                redirectToSignUp.commit();
-                                            }));
-                                            builder.show();
-                                        }
-                                    });
+
+                                @Override
+                                public void onProgress(String requestId, long bytes, long totalBytes) {
+                                    Log.d(TAG, "Uploading: " + (bytes / totalBytes) * 100 + "%");
                                 }
-                                else{
-                                    Log.e("MongoDBHandler",doc.getString("error"));
-                                    handler.post(new Runnable() {
-                                        @Override
-                                        public void run() {
-                                            Toast.makeText(getContext(),"Error Encountered",Toast.LENGTH_SHORT).show();
-                                            nextButton.setEnabled(true);
-                                        }
-                                    });
-                                }
-                            }else{
-                                result.getError().printStackTrace();
-                                handler.post(
-                                        new Runnable() {
-                                            @Override
-                                            public void run() {
-                                                Toast.makeText(getContext(),"We Could not store your data to cloud",Toast.LENGTH_SHORT).show();
-                                                Log.e("asyncCall", "failed");
-                                                nextButton.setEnabled(true);
+
+                                @Override
+                                public void onSuccess(String requestId, Map resultData) {
+                                    User currentUser = app.currentUser();
+                                    String Public_id = (String) resultData.get("public_id");
+                                    Log.d(TAG, "Upload successful");
+                                    mp.put("CloudinaryId", Public_id);
+                                    mp.put("ThumbnailId",thumbnailId);
+                                    Functions userSignUpFunction = currentUser.getFunctions();
+                                    List<String> args = Arrays.asList(uniqueId,
+                                            mp.get("UserFirstName"),
+                                            mp.get("UserLastName"),
+                                            mp.get("PhoneNo"),
+                                            mp.get("Salt"),
+                                            mp.get("Password"),
+                                            mp.get("CloudinaryId"),
+                                            mp.get("ThumbnailId"));
+                                    userSignUpFunction.callFunctionAsync("UserRegistration", args, Document.class, result -> {
+                                        if (result.isSuccess()) {
+                                            Document doc = result.get();
+                                            if (doc.getString("status").equals("Done")) {
+                                                Log.d(TAG, "MONGODB done");
+                                                SharedPreferences userMetaDetails = getActivity().getSharedPreferences("UserMetaDetails", MODE_PRIVATE);
+                                                SharedPreferences.Editor editor = userMetaDetails.edit();
+                                                for (Map.Entry<String, String> elements : mp.entrySet()) editor.putString(elements.getKey(), elements.getValue());
+                                                editor.putBoolean("isSignedUp", true);
+                                                editor.putBoolean("isEmailVerified", false);
+                                                editor.putBoolean("staySignedIn", true);
+                                                ArrayList<Bitmap> arr = new ArrayList<>();
+                                                String json = new Gson().toJson(arr);
+                                                ArrayList<ArrayList<String>> pending_invites = new ArrayList<ArrayList<String>>();
+                                                ArrayList<ArrayList<String>> connections = new ArrayList<ArrayList<String>>();
+                                                String newJson = new Gson().toJson(pending_invites);
+                                                editor.putString("PendingInvites", newJson);
+                                                editor.putString("Connections",new Gson().toJson(connections));
+                                                editor.putString("UserId", uniqueId);
+                                                editor.apply();
+                                                Intent newIntent = new Intent(getContext(), MainActivity.class);
+                                                newIntent.putExtra("cloudinaryInitialization", true);
+                                                startActivity(newIntent);
+                                                getActivity().finish();
                                             }
+                                            else{
+                                                Log.e("MONGODBHandler", doc.getString("error"));
+                                                handler.post(new Runnable() {
+                                                    @Override
+                                                    public void run() {
+                                                        Toast.makeText(getContext(), "Error Encountered", Toast.LENGTH_SHORT).show();
+                                                        nextButton.setEnabled(true);
+                                                    }
+                                                });
+                                            }
+                                        } else {
+                                            result.getError().printStackTrace();
+                                            handler.post(
+                                                    new Runnable() {
+                                                        @Override
+                                                        public void run() {
+                                                            Toast.makeText(getContext(), "We Could not store your data to cloud", Toast.LENGTH_SHORT).show();
+                                                            Log.e("asyncCall", "failed");
+                                                            nextButton.setEnabled(true);
+                                                        }
+                                                    }
+                                            );
                                         }
-                                );
-                            }
-                        });
-                    }
+                                    });
+                                }
 
-                    @Override
-                    public void onError(String requestId, ErrorInfo error) {
-                        Log.e(TAG, "Upload error: " + error.getDescription());
+                                @Override
+                                public void onError(String requestId, ErrorInfo error) {
+                                    Log.e(TAG, "Upload error: " + error.getDescription());
 
-                    }
+                                }
+                                @Override
+                                public void onReschedule(String requestId, ErrorInfo error) {
+                                    Log.d(TAG, "Upload rescheduled");
+                                }
+                            })
+                            .dispatch();
+                }
 
-                    @Override
-                    public void onReschedule(String requestId, ErrorInfo error) {
-                        Log.d(TAG, "Upload rescheduled");
-                    }
-                })
-                .dispatch();
+                @Override
+                public void onError(String requestId, ErrorInfo error) {
+
+                }
+
+                @Override
+                public void onReschedule(String requestId, ErrorInfo error) {
+
+                }
+            }).dispatch();
+        }
+        else{
+            Log.e("CloudConnector","Connection To cloud failed");
+            Toast.makeText(getContext(),"You are Not Connected to cloud. Please check connection!",Toast.LENGTH_SHORT).show();
+        }
     }
     public static passowrdFragment newInstance(HashMap<String,String> map) {
         passowrdFragment fragment = new passowrdFragment();
@@ -198,29 +204,30 @@ public class passowrdFragment extends Fragment {
         return fragment;
     }
 
+    public boolean createDirectory(String name){
+        File directory = getContext().getFilesDir();
+        File newDName = new File(directory,name);
+        if (!newDName.exists()) {
+            boolean isCreated = newDName.mkdir();
+            if (isCreated){
+                File file = new File(newDName,"ProfilePictures");
+                if (!file.exists()) return file.mkdir();
+            }
+        }
+        return false;
+    }
+
     @Override
     @SuppressWarnings("unchecked")
     public void onCreate(Bundle savedInstanceState) {
-        StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
         status=0;
         executed=0;
-        StrictMode.setThreadPolicy(policy);
         super.onCreate(savedInstanceState);
         Bundle info = getArguments();
         handler=new Handler(Looper.getMainLooper());
+        isPendingInvitesCreated=isConnectionCreated=0;
         if (info != null) mp = (HashMap<String, String>) info.getSerializable(param1);
-        if (getContext()!=null) Realm.init(getContext());
-        app = new App(new AppConfiguration.Builder(UserSignUpTools.getRealmAppId()).build());
-        app.loginAsync(Credentials.anonymous(), result -> {
-                if (result.isSuccess())  Log.d("Login","Logged In Successfully");
-                else Log.e("AsyncLogin","Login Failed");
-            }
-        );
-        Map<String,String> config = new HashMap<>();
-        config.put("cloud_name",getString(R.string.CloudName));
-        config.put("api_key",getString(R.string.APIKey));
-        config.put("api_secret",getString(R.string.APISecret));
-        if (getActivity()!=null) MediaManager.init(getActivity(),config);
+        ExecutorService executorService = Executors.newFixedThreadPool(4);
         Runnable qrCodeGenerator = new Runnable() {
             @Override
             public void run() {
@@ -272,15 +279,33 @@ public class passowrdFragment extends Fragment {
                 }
             }
         };
-        ExecutorService executorService = Executors.newSingleThreadExecutor();
-        executorService.execute(qrCodeGenerator);
+        Runnable createPendingInvites = new Runnable() {
+            @Override
+            public void run() {
+                boolean a = createDirectory("pendingInvites");
+                if (a) isPendingInvitesCreated=1;
+                else isPendingInvitesCreated=-1;
+            }
+        };
+        Runnable createConnections = new Runnable(){
+            @Override
+            public void run(){
+                boolean a = createDirectory("connections");
+                if (a) isConnectionCreated=1;
+                else isConnectionCreated=-1;
+            }
+        };
         Runnable createCard = new Runnable(){
             @Override
             public void run(){
                 ImageManipulation.manipulateImage(R.drawable.card_default_template,1290,380,2260,770,58, 67, 60,181, 207, 173,185,getActivity(),mp.get("UserFirstName")+" "+mp.get("UserLastName"));
             }
         };
+        executorService.execute(createPendingInvites);
+        executorService.execute(createConnections);
+        executorService.execute(qrCodeGenerator);
         executorService.execute(createCard);
+        executorService.shutdown();
     }
 
     @Override
@@ -293,7 +318,7 @@ public class passowrdFragment extends Fragment {
                     if (executed == 1) {
                         if (status == 1) {
                             nextButton.setEnabled(false);
-                            EditText passwordField = view.findViewById(R.id.passwordField);
+                            TextInputEditText passwordField = view.findViewById(R.id.passwordField);
                             String password = passwordField.getText().toString().trim();
                             boolean flag1 = false, flag2 = false, flag3 = false;
                             for (int i = 0; i < password.length(); i++) {
@@ -305,13 +330,19 @@ public class passowrdFragment extends Fragment {
                                     flag3 = true;
                             }
                             if (flag1 && flag2 && flag3 && password.length() >= 6) {
+                                isConnectedToCloudinary = ((SignUp)getActivity()).checkCloudinaryConnection();
+                                isConnectedToRealm = ((SignUp)getActivity()).checkRealmConnection();
+                                app = ((SignUp) getActivity()).getApp();
                                 String sha256checksum = UserSignUpTools.sha256Checksum(password, this, mp);
                                 mp.put("Password", sha256checksum);
                                 File currentDirectory = null;
                                 if (getActivity()!=null) currentDirectory = getActivity().getFilesDir();
                                 File userCardFile = new File(currentDirectory,"card.png");
+                                File ThumbnailFile = new File(currentDirectory,"userProfile.png");
                                 Uri uri = Uri.fromFile(userCardFile);
-                                uploadImage(uri,mp,nextButton,currFragInst);
+                                Uri thumbnailUri = Uri.fromFile(ThumbnailFile);
+                                if (isConnectedToRealm && isConnectedToCloudinary && app!=null) uploadImage(thumbnailUri,uri,mp,nextButton,currFragInst);
+                                else Toast.makeText(getActivity(),"You are not Connected to backend. please retry!",Toast.LENGTH_SHORT).show();
                             } else {
                                 UserSignUpTools.showAlert(currFragInst, "Password requires 1 uppercase char, one lower case char, one num and at least size 6");
                                 nextButton.setEnabled(true);

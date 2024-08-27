@@ -21,7 +21,7 @@ public class SplashScreen extends AppCompatActivity {
         new Handler().postDelayed(new Runnable(){
             @Override
             public void run(){
-                Intent redirectToHomeOrSignUp = new Intent(SplashScreen.this,HomeScreenCumRedirectToSignUp.class);
+                Intent redirectToHomeOrSignUp = new Intent(SplashScreen.this,MainActivity.class);
                 startActivity(redirectToHomeOrSignUp);
                 finish();
             }

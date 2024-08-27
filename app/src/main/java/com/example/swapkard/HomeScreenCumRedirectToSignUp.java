@@ -19,15 +19,11 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.Typeface;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.util.Log;
-import android.view.Menu;
-import android.view.MenuInflater;
-import android.view.MenuItem;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.Toast;
@@ -39,6 +35,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.journeyapps.barcodescanner.ScanContract;
 import com.journeyapps.barcodescanner.ScanOptions;
@@ -52,8 +49,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import io.realm.Realm;
 import io.realm.mongodb.App;
@@ -61,7 +56,6 @@ import io.realm.mongodb.AppConfiguration;
 import io.realm.mongodb.Credentials;
 import io.realm.mongodb.User;
 import io.realm.mongodb.functions.Functions;
-
 public class HomeScreenCumRedirectToSignUp extends AppCompatActivity {
     private int status;
     private String id;
@@ -83,7 +77,8 @@ public class HomeScreenCumRedirectToSignUp extends AppCompatActivity {
 
     private ArrayList<ArrayList<String>> pending_invites;
 
-    private ArrayList<Bitmap> invitees_card;
+    private ArrayList<ArrayList<String>> connections;
+
 
     private Activity activity;
 
@@ -91,58 +86,58 @@ public class HomeScreenCumRedirectToSignUp extends AppCompatActivity {
 
     private Handler handler;
 
+    private BroadcastReceiver broadcastReceiver;
+
 
     public static App getApp(){
         return app;
     }
 
-    private void performRealmLogin(Context context,boolean flag,String qrcode){
+    private void performRealmLogin(Context context){
         if (UserSignUpTools.isInternetAvailable(context)) {
             Realm.init(context);
-            SharedPreferences sharedPreferences = getSharedPreferences("UserMetaDetails", MODE_PRIVATE);
-            password = sharedPreferences.getString("Password", "noPassword");
-            id = sharedPreferences.getString("UserId", "notPresent");
-            cloudinaryId = sharedPreferences.getString("Public_id","notPresent");
             app = new App(new AppConfiguration.Builder(UserSignUpTools.getRealmAppId()).build());
             Document doc = new Document("id", id).append("password", password);
             Credentials cred = Credentials.customFunction(doc);
             app.loginAsync(cred, result -> {
                     if (result.isSuccess()) {
-                        status = 1;
-                        serviceConnection = new ServiceConnection() {
-                            @Override
-                            public void onServiceConnected(ComponentName name, IBinder service) {
-                                Log.d("ServiceConnector","Connected");
-                                isConnected=true;
-                                FetchRequests.LocalBinder localBinder = (FetchRequests.LocalBinder) service;
-                                fetchRequests =  localBinder.getService();
-                            }
+                        User authRes = result.get();
+                        if (authRes.getId().equals("NotFound")){
+                            status=0;
+                            Handler handler = new Handler(Looper.getMainLooper());
+                            handler.post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    Toast.makeText(getApplicationContext(),"Failed To Login",Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                            Toast.makeText(getApplicationContext(),"Failed To LogIn",Toast.LENGTH_SHORT).show();
+                        }
+                        else {
+                            status = 1;
+                            serviceConnection = new ServiceConnection() {
+                                @Override
+                                public void onServiceConnected(ComponentName name, IBinder service) {
+                                    Log.d("ServiceConnector", "Connected");
+                                    isConnected = true;
+                                    FetchRequests.LocalBinder localBinder = (FetchRequests.LocalBinder) service;
+                                    fetchRequests = localBinder.getService();
+                                }
 
-                            @Override
-                            public void onServiceDisconnected(ComponentName name) {
-                                Log.d("ServiceConnector","Disconnected");
-                                isConnected=true;
-                            }
-                        };
-                        Thread thread = new Thread(){
-                            @Override
-                            public void run() {
-                                serviceIntent = new Intent(activity,FetchRequests.class);
-                                serviceIntent.putExtra("Array",pending_invites);
-                                serviceIntent.putExtra("UserId",id);
-                                serviceIntent.putExtra("BitmapArray",invitees_card);
-                                serviceIntent.putExtra("cloudinaryInitialization",cloudinaryInitialization);
-                                startService(serviceIntent);
-                                bindService(serviceIntent,serviceConnection,Context.BIND_AUTO_CREATE);
-                            }
-                        };
-                        thread.start();
-                        if (flag) sendConnectionRequest(qrcode,id);
-                        Log.d("Login", "Logged in successfully. Auth ok");
-                    } else {
-                        status = 2;
-
-                        Log.e("Login", "Auth failed");
+                                @Override
+                                public void onServiceDisconnected(ComponentName name) {
+                                    Log.d("ServiceConnector", "Disconnected");
+                                    isConnected = false;
+                                }
+                            };
+                            serviceIntent = new Intent(activity, FetchRequests.class);
+                            serviceIntent.putExtra("Array", pending_invites);
+                            serviceIntent.putExtra("UserId", id);
+                            serviceIntent.putExtra("cloudinaryInitialization", cloudinaryInitialization);
+                            startService(serviceIntent);
+                            bindService(serviceIntent, serviceConnection, Context.BIND_AUTO_CREATE);
+                            Log.d("Login", "Logged in successfully. Auth ok");
+                        }
                     }
             });
         }
@@ -152,11 +147,22 @@ public class HomeScreenCumRedirectToSignUp extends AppCompatActivity {
         }
     }
 
+    @Override
+    protected void onStart(){
+        super.onStart();
+        IntentFilter intentFilter = new IntentFilter();
+        registerReceiver(broadcastReceiver,intentFilter);
+        LocalBroadcastManager.getInstance(this).registerReceiver(broadcastReceiver, new IntentFilter("com.example.new_request"));
+    }
+
+    protected void onStop(){
+        super.onStop();
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(broadcastReceiver);
+    }
     private void sendConnectionRequest(String qrcode,String id){
         User curr = app.currentUser();
         Functions func = curr.getFunctions();
         List<Object> args = Arrays.asList(qrcode,id,cloudinaryId);
-        Log.d("Lambda",cloudinaryId+"   "+qrcode+"    "+id);
         func.callFunctionAsync("sendRequest", args, Document.class, result1 -> {
                     if (result1.isSuccess()) {
                         Document details = result1.get();
@@ -186,25 +192,7 @@ public class HomeScreenCumRedirectToSignUp extends AppCompatActivity {
                 }
         );
     }
-    public boolean onCreateOptionsMenu(Menu menu) {
-        MenuInflater inflater = getMenuInflater();
-        inflater.inflate(R.menu.menu_home_screen_cum_redirect_to_sign_up, menu);
-        return true;
-    }
 
-    public boolean onOptionsItemSelected(MenuItem item) {
-        int selected = item.getItemId();
-        if (selected == R.id.home){
-            Toast.makeText(getApplicationContext(),"You Clicked on Home",Toast.LENGTH_SHORT).show();
-        }
-        else if (selected == R.id.viewCard){
-            Toast.makeText(getApplicationContext(),"You Clicked on viewCard",Toast.LENGTH_SHORT).show();
-        }
-        else{
-            Toast.makeText(getApplicationContext(),"You Clicked on view connections",Toast.LENGTH_SHORT).show();
-        }
-        return true;
-    }
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -212,11 +200,28 @@ public class HomeScreenCumRedirectToSignUp extends AppCompatActivity {
         SharedPreferences userMetaDetails = getSharedPreferences("UserMetaDetails", MODE_PRIVATE);
         boolean sessionSet = userMetaDetails.getBoolean("isSignedUp", false);
         if (!sessionSet) {
-            Log.d("Login",userMetaDetails.getString("PhoneNo","not Present"));
             Intent redirectToSignUp = new Intent(HomeScreenCumRedirectToSignUp.this, SignUp.class);
             startActivity(redirectToSignUp);
             finish();
         }
+        password = userMetaDetails.getString("Password", "noPassword");
+        id = userMetaDetails.getString("UserId", "notPresent");
+        cloudinaryId = userMetaDetails.getString("Public_id","notPresent");
+        broadcastReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                Toast.makeText(context,"Got New Connections",Toast.LENGTH_SHORT).show();
+                pending_invites=(ArrayList<ArrayList<String>>) intent.getExtras().get("PendingRequests");
+                ArrayList<String> last = pending_invites.get(pending_invites.size()-1);
+            }
+        };
+        BroadcastReceiver connectionListener = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (UserSignUpTools.isInternetAvailable(context) && status==0) performRealmLogin(context);
+            }
+        };
+        registerReceiver(connectionListener,new IntentFilter("android.net.conn.CONNECTIVITY_CHANGE"));
         handler = new Handler(Looper.getMainLooper());
         status = 0;
         activity=this;
@@ -224,68 +229,19 @@ public class HomeScreenCumRedirectToSignUp extends AppCompatActivity {
         if (intent.getExtras()!=null)  cloudinaryInitialization = intent.getExtras().getBoolean("cloudinaryInitialization", false);
         else cloudinaryInitialization=false;
         Context context = getApplicationContext();
-        String json = userMetaDetails.getString("PendingRequestsCards",null);
-        Type type = new TypeToken<ArrayList<Bitmap>>() {}.getType();
-        invitees_card = new Gson().fromJson(json, type);
         String inviteId = userMetaDetails.getString("PendingInvites",null);
-        Type type2 = new TypeToken<ArrayList<ArrayList<String>>>() {}.getType();
-        pending_invites = new Gson().fromJson(inviteId,type2);
-
-        Runnable performLoginOnEntry = new Runnable() {
-                @Override
-                public void run() {
-                    performRealmLogin(context,false,null);
-                }
-        };
-        ExecutorService executors = Executors.newSingleThreadExecutor();
-        Handler handler = new Handler(Looper.getMainLooper());
-        executors.execute(new Runnable() {
-            @Override
-            public void run() {
-                handler.post(performLoginOnEntry);
-            }
-        });
+        String connectionIds = userMetaDetails.getString("Connections",null);
+        Type type = new TypeToken<ArrayList<ArrayList<String>>>() {}.getType();
+        pending_invites = new Gson().fromJson(inviteId,type);
+        connections = new Gson().fromJson(connectionIds,type);
         qrCodeScanner = registerForActivityResult(
                     new ActivityResultContracts.StartActivityForResult(),
                     result -> {
                         if (result.getResultCode() == Activity.RESULT_OK) {
                             Bundle extras = result.getData().getExtras();
                             String qrcode = extras.getString("SCAN_RESULT");
-                            if (status == 0){
-                                executors.execute(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        handler.post(new Runnable() {
-                                            @Override
-                                            public void run() {
-                                                performRealmLogin(context,true,qrcode);
-                                            }
-                                        });
-                                    }
-                                });
-                            }
-                            else if (status == 1) {
-                                executors.execute(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        handler.post(new Runnable() {
-                                            @Override
-                                            public void run() {sendConnectionRequest(qrcode,id);}
-                                        });
-                                    }
-                                });
-                            }
-                            else{
-                                handler.post(
-                                        new Runnable() {
-                                            @Override
-                                            public void run() {
-                                                Log.e("QRScanner","QR scanning unsuccessful");
-                                                Toast.makeText(context,"Some Error Occurred",Toast.LENGTH_SHORT).show();
-                                            }
-                                        }
-                                );
-                            }
+                            if (status == 0) Toast.makeText(context,"You are not logged in!check your connection",Toast.LENGTH_SHORT).show();
+                            else sendConnectionRequest(qrcode,id);
                         }
                     }
             );
@@ -306,29 +262,14 @@ public class HomeScreenCumRedirectToSignUp extends AppCompatActivity {
             viewRequest.setOnClickListener(
                     v->{
                         Intent newIntent = new Intent(getApplicationContext(),viewRequests.class);
-                        newIntent.putExtra("bitmapArray",invitees_card);
-                        newIntent.putExtra("pendingInvites",pending_invites);
                         startActivity(newIntent);
                     }
             );
-            upDateReceiver = new BroadcastReceiver() {
-                @Override
-                public void onReceive(Context context, Intent intent) {
-                    Log.d("BroadCastReceiver","Running OK");
-                    invitees_card = (ArrayList<Bitmap>) intent.getExtras().get("bitmapArray");
-                    pending_invites = (ArrayList<ArrayList<String>>) intent.getExtras().get("pendingInvites");
-                }
-            };
-            IntentFilter filter = new IntentFilter("com.example.broadcast.NEW_REQUEST_GOT");
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                registerReceiver(upDateReceiver, filter,RECEIVER_NOT_EXPORTED);
-            }
             ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
                 Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
                 v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
                 return insets;
             });
-
     }
 }
 class ImageManipulation{

@@ -3,66 +3,83 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     tools:context=".otpEntry">
 
     <TextView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:text="@string/otp"
+        android:fontFamily="@font/bungee"
         android:textSize="40sp"
         android:layout_marginTop="100dp"/>
 
-    <EditText
-        android:id="@+id/digit"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="250dp"
-        android:layout_marginStart="30dp"
-        android:inputType="number"
-        android:maxLength="6" />
+        android:layout_marginTop="100dp"
+        android:orientation="vertical">
 
-    <Button
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:id="@+id/otpVerificationProceed"
-        android:layout_marginTop="300dp"
-        android:layout_marginStart="50dp"
-        android:text="@string/next"  />
+        <com.chaos.view.PinView
+            android:id="@+id/digit"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="140dp"
+            app:itemCount="6"
+            app:itemWidth="50dp"
+            app:itemHeight="50dp"
+            android:layout_gravity="center"
+            app:itemRadius="5dp"
+            app:lineColor="@color/black"
+            android:inputType="number"
+            android:cursorVisible="true"
+            app:hideLineWhenFilled="true"
+            style="@style/PinWidget.PinView"/>
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/resendOtp"
-        android:layout_marginTop="360dp"
-        android:layout_marginStart="100dp"
-        />
+        <Button
+            android:id="@+id/otpVerificationProceed"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="50dp"
+            android:layout_marginTop="100dp"
+            android:text="@string/next" />
 
-    <TextView
-        android:id="@+id/secondsRemaining"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/secondsRemaining"
-        android:layout_marginTop="390dp"
-        android:layout_marginStart="170dp"
-        />
+        <Button
+            android:id="@+id/otpVerificationAbort"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="250dp"
+            android:layout_marginTop="-46dp"
+            android:text="@string/previous" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="120dp"
+            android:layout_marginTop="50dp"
+            android:text="@string/resendOtp" />
+
+        <TextView
+            android:id="@+id/secondsRemaining"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="172dp"
+            android:layout_marginTop="10dp"
+            android:text="@string/secondsRemaining" />
 
 
-    <Button
-        android:id="@+id/otpResend"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="420dp"
-        android:layout_marginStart="120dp"
-        android:enabled="false"
-        android:text="@string/resend" />
+        <Button
+            android:id="@+id/otpResend"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="138dp"
+            android:layout_marginTop="12dp"
+            android:enabled="false"
+            android:text="@string/resend" />
 
-    <Button
-        android:id="@+id/otpVerificationAbort"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="300dp"
-        android:layout_marginStart="200dp"
-        android:text="@string/previous" />
+
+    </LinearLayout>
+
 
 
 </FrameLayout>

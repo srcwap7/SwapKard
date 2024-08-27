@@ -14,6 +14,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 
+import com.chaos.view.PinView;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.AuthResult;
@@ -70,7 +71,7 @@ public class otpEntry extends Fragment {
                         mp.put("PhoneNo", mParam2);
                         FragmentManager fragmentManager = getActivity().getSupportFragmentManager();
                         FragmentTransaction onSuccessfulOTPVerification = fragmentManager.beginTransaction();
-                        onSuccessfulOTPVerification.replace(R.id.fragment_username_prompt, passowrdFragment.newInstance(mp));
+                        onSuccessfulOTPVerification.replace(R.id.fragment_username_prompt, ProfilePicture.newInstance(mp));
                         onSuccessfulOTPVerification.commit();
                     }
                     else{
@@ -91,7 +92,7 @@ public class otpEntry extends Fragment {
         Button otpVerifyButton = view.findViewById(R.id.otpVerificationProceed);
         otpVerifyButton.setOnClickListener( v -> {
                 otpVerifyButton.setEnabled(false);
-                String code = ((EditText)view.findViewById(R.id.digit)).getText().toString().trim();
+                String code = ((PinView)view.findViewById(R.id.digit)).getText().toString().trim();
                 PhoneAuthCredential credentials = PhoneAuthProvider.getCredential(mParam1,code);
                 signInWithCredential(credentials);
             }
