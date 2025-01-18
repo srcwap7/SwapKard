@@ -1,25 +1,25 @@
 const express = require('express');
 const app = express();
 const cors = require('cors');
-const cookieParser=require('cookie-parser');
-const bodyParser=require('body-parser');
-const router = require("./routes/userRoutes");
+const cookieParser = require('cookie-parser');
 const fileUpload = require('express-fileupload');
+const router = require("./routes/userRoutes");
 
 app.set('trust proxy', true);
 
+// Set up CORS
 app.use(cors({
-    origin: ['https://hotel-management-2-03dr.onrender.com', 'http://localhost:3000', 'https://hotel-management-sepia-eight.vercel.app'],
+    origin: ['http://localhost:8081', 'http://localhost:8080'],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true
 }));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true })); 
-app.use(fileUpload({ useTempFiles: true })); 
-app.use(cookieParser());
-app.use(bodyParser.json());
+app.use(fileUpload({ useTempFiles: true }));
 
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 app.use("/api/v1", router);
 
 module.exports = app;

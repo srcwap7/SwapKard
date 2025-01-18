@@ -46,6 +46,7 @@ const userSchema=mongoose.Schema({
     resetPasswordToken:String,
     resetPasswordExpire: Date,
 })
+
 userSchema.methods.getresetpass=function(){
     const resetToken=crypto.randomBytes(20).toString("hex");
     this.resetPasswordToken=crypto.createHash("sha256").update(resetToken).digest("hex");
