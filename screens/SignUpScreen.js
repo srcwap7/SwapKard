@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { Formik } from 'formik';
 import PinView from '../components/PinView';
 import { useNavigation } from '@react-navigation/native';
@@ -19,8 +19,7 @@ export default function SignUpScreen() {
 
   useEffect(() => {
     let timer;
-    if (seconds > 0 && !timer) 
-      timer = setInterval(() => setSeconds((prevSeconds) => prevSeconds - 1), 1000);
+    if (seconds > 0 && !timer) timer = setInterval(() => setSeconds((prevSeconds) => prevSeconds - 1), 1000);
     else {
       clearInterval(timer);
       setCounterOver(true);
@@ -29,7 +28,7 @@ export default function SignUpScreen() {
   }, [isRunning, seconds]);
 
   return (
-    <View style={styles.background}>
+    <ScrollView style={styles.background}>
       <View style={styles.rootView}>
         <Text style={styles.headerText}>Create Account</Text>
         
@@ -42,15 +41,15 @@ export default function SignUpScreen() {
               setName(values.name);
               axios.post("http://10.50.53.155:5000/api/v1/sendOtp", { email: values.email })
                 .then((res) => {
-                  if (res.status == 200) {
+                  if (res.data.success) {
                     setMailSent(true);
                     setRunning(true);
                   } else {
                     alert("Error in sending Email. Please ensure you haven't entered an invalid email or you have an ongoing OTP transaction within last 5 minutes");
                   }
                 }).catch((error) => {
-                  console.log(error);
-                  alert("Server error. Endpoint unreachable");
+                   const message = error.response ? error.response.data.message : error.message;
+                   alert(message);
                 });
             }}
             validate={(values) => {
@@ -157,13 +156,13 @@ export default function SignUpScreen() {
           />
         )}
 
-        {counterOver && !otpmatched && (
+        {mailSent && counterOver && !otpmatched && (
           <TouchableOpacity style={styles.resendButton}>
             <Text style={styles.resendButtonText}>Resend OTP</Text>
           </TouchableOpacity>
         )}
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -217,7 +216,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   signupButton: {
-    backgroundColor: '#6C63FF', // Vibrant purple accent
+    backgroundColor: '#6C63FF', 
     paddingVertical: 15,
     borderRadius: 12,
     marginTop: 10,

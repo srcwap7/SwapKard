@@ -1,6 +1,6 @@
 const express=require("express");
 const {sendEmailOtp,registerUser,loginUser,logoutUser,forgotPass,resetPassword,loadUser,verifyEmail,uploadProfilePic,registerUserMobile } = require("../controller/userController");
-const {forgotPasswordMobile, resetPasswordMobile } = require("../controller/userController");
+const {forgotPasswordMobile, resetPasswordMobile} = require("../controller/userController");
 const { isAuthenticated } = require("../middleware/auth");
 const { verifyToken } = require("../middleware/isTokenValid");
 

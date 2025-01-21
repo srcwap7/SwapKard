@@ -1,20 +1,45 @@
-import React from 'react';
-import { Text, View, ImageBackground, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { Text, View, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { CheckBox } from 'react-native-elements';
 import { Formik } from 'formik';
 import { useNavigation } from '@react-navigation/native';
 import axios from 'axios';
+import EncryptedStorage from 'react-native-encrypted-storage';
 
-export default function Details({route}) {
+export default function Details({ route }) {
   const { cloudinary, name, email, password, token } = route.params;
   const navigation = useNavigation();
 
+  const [keepLoggedIn, setKeepLoggedIn] = useState(false);
+  const [uerId, setUserId] = useState('');
+  const [userBroadcastQR, setUserBroadcastQR] = useState(false);
+  const [userPrivateQR, setUserPrivateQR] = useState(false);
+
+  const saveSecureData = async () => {
+    try {
+      await EncryptedStorage.setItem(
+        'user_data',
+        JSON.stringify({ 
+          email:email,
+          password:password,
+          name:name,
+          userId:uerId,
+          profilePicUrl: cloudinary,
+          userBroadcastQR: userBroadcastQR,
+          userPrivateQR: userPrivateQR,
+          isLoggedIn: true,
+          keepLoggedIn:keepLoggedIn,
+        })
+      );
+      console.log('Data saved securely');
+    } catch (error) {
+      console.error('Failed to save data securely:', error);
+    }
+  };
+
   return (
-    <ImageBackground
-      source={require("../assets/background.png")}
-      resizeMode="cover"
-      style={styles.background}
-    > 
-      <ScrollView style={{ flex: 1, marginTop: 40 }}>
+    <ScrollView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
         <Formik
           initialValues={{ Role: '', WorksAt: '', phoneNo: '', website: '', age: '' }}
           validate={(values) => {
@@ -22,11 +47,11 @@ export default function Details({route}) {
             if (!values.phoneNo) errors.phoneNo = "Phone No Required";
             if (!values.Role) errors.Role = "Role Required";
             if (!values.WorksAt) errors.WorksAt = "WorksAt Required";
-            else if (!/^\+\d{1,3}\d{7,12}$/.test(values.phoneNo)) 
+            else if (!/^\+\d{1,3}\d{7,12}$/.test(values.phoneNo))
               errors.phoneNo = "Phone number must start with a country code (e.g., +123) and be valid.";
             return errors;
           }}
-          onSubmit={async(values) => {
+          onSubmit={async (values) => {
             try {
               const res = await axios.post('http://10.50.53.155:5000/api/v1/details', {
                 name, email, password,
@@ -40,22 +65,27 @@ export default function Details({route}) {
                 }
               });
               if (res.data.success) {
-                console.log("Profile created")
-                navigation.navigate('NextScreen');
+                console.log("Profile created");
+                setUserId(res.data.user._id);
+                setUserBroadcastQR(res.data.qrBroadcast);
+                setUserPrivateQR(res.data.qrPrivate);
+                saveSecureData();
+                
               } else {
-                console.log(res.message)
+                console.log(res.message);
                 alert("Profile not created " + res.message);
               }
-            } catch(err) {
-              console.log(err)
-              alert("Error in sending request. Check your internet connection")
+            } catch (error) {
+              const errorMessage = error.response ? error.response.data.message : 'An error occurred';
+              alert(errorMessage);
             }
           }}
         >
           {({ handleChange, handleBlur, handleSubmit, touched, values, errors }) => (
-            <View style={styles.rootView}>
+            <View style={styles.formContainer}>
               <Text style={styles.headerText}>Complete Your Profile</Text>
               
+              {/* Input fields */}
               <View style={styles.inputContainer}>
                 <Text style={styles.labelText}>Professional Role</Text>
                 <TextInput
@@ -63,7 +93,7 @@ export default function Details({route}) {
                   onBlur={handleBlur('Role')}
                   onChangeText={handleChange('Role')}
                   placeholder="e.g. Senior Developer"
-                  placeholderTextColor="rgba(255,255,255,0.5)"
+                  placeholderTextColor="#666"
                   style={styles.input}
                 />
                 {touched.Role && errors.Role && (
@@ -78,7 +108,7 @@ export default function Details({route}) {
                   onBlur={handleBlur('WorksAt')}
                   onChangeText={handleChange('WorksAt')}
                   placeholder="e.g. Google Inc"
-                  placeholderTextColor="rgba(255,255,255,0.5)"
+                  placeholderTextColor="#666"
                   style={styles.input}
                 />
                 {touched.WorksAt && errors.WorksAt && (
@@ -93,7 +123,7 @@ export default function Details({route}) {
                   onBlur={handleBlur('phoneNo')}
                   onChangeText={handleChange('phoneNo')}
                   placeholder="+1 234 567 8900"
-                  placeholderTextColor="rgba(255,255,255,0.5)"
+                  placeholderTextColor="#666"
                   style={styles.input}
                   keyboardType="phone-pad"
                 />
@@ -109,7 +139,7 @@ export default function Details({route}) {
                   onBlur={handleBlur('website')}
                   onChangeText={handleChange('website')}
                   placeholder="www.yourportfolio.com"
-                  placeholderTextColor="rgba(255,255,255,0.5)"
+                  placeholderTextColor="#666"
                   style={styles.input}
                 />
               </View>
@@ -121,13 +151,22 @@ export default function Details({route}) {
                   onBlur={handleBlur('age')}
                   onChangeText={handleChange('age')}
                   placeholder="Your age"
-                  placeholderTextColor="rgba(255,255,255,0.5)"
+                  placeholderTextColor="#666"
                   style={styles.input}
                   keyboardType="numeric"
                 />
               </View>
 
-              <TouchableOpacity 
+              {/* Checkbox */}
+              <TouchableOpacity
+                style={styles.checkboxContainer}
+                onPress={() => setKeepLoggedIn(!keepLoggedIn)}
+              >
+                <View style={[styles.checkbox, keepLoggedIn && styles.checkboxSelected]} />
+                <Text style={styles.checkboxText}>Keep me logged in</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
                 style={styles.submitButton}
                 onPress={handleSubmit}
               >
@@ -137,75 +176,30 @@ export default function Details({route}) {
           )}
         </Formik>
       </ScrollView>
-    </ImageBackground>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  background: {
-    flex: 1,
-    backgroundColor: '#1a1a1a',
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
   },
-  rootView: {
-    flex: 1,
-    paddingHorizontal: 25,
-    paddingVertical: 20,
+  checkbox: {
+    height: 20,
+    width: 20,
+    borderRadius: 5,
+    borderWidth: 2,
+    borderColor: '#ff00ff',
+    backgroundColor: 'transparent',
+    marginRight: 10,
   },
-  headerText: {
-    fontSize: 28,
-    fontWeight: '600',
-    color: '#fff',
-    marginBottom: 30,
-    textAlign: 'center',
-    letterSpacing: 0.5,
+  checkboxSelected: {
+    backgroundColor: '#ff00ff',
   },
-  inputContainer: {
-    marginBottom: 20,
-    width: '100%',
-  },
-  labelText: {
-    color: '#e5e5e5',
-    fontSize: 16,
-    marginBottom: 8,
-    fontWeight: '500',
-    letterSpacing: 0.5,
-  },
-  input: {
-    height: 55,
-    width: '100%',
-    borderColor: 'rgba(255,255,255,0.2)',
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 15,
+  checkboxText: {
     color: '#ffffff',
     fontSize: 16,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-  },
-  errorText: {
-    color: '#ff6b6b',
-    fontSize: 13,
-    marginTop: 5,
-    fontWeight: '500',
-  },
-  submitButton: {
-    backgroundColor: '#007AFF',
-    paddingVertical: 15,
-    borderRadius: 12,
-    marginTop: 20,
-    shadowColor: '#007AFF',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
-    elevation: 8,
-  },
-  submitButtonText: {
-    color: '#ffffff',
-    textAlign: 'center',
-    fontSize: 18,
-    fontWeight: '600',
-    letterSpacing: 0.5,
   },
 });

@@ -1,14 +1,42 @@
-import React from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image } from 'react-native';
+import { React, useEffect } from 'react';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image ,ScrollView} from 'react-native';
 import { Formik } from 'formik';
 import { useNavigation } from '@react-navigation/native';
 import axios from 'axios';
+import EncryptedStorage from 'react-native-encrypted-storage';
 
 export default function LoginScreen() {
   const navigation = useNavigation();
 
+  useEffect(async()=>{
+    try{
+      const data = await EncryptedStorage.getItem('user_data');
+      if (data) {
+        const userData = JSON.parse(data);
+        const userbroadcastQR = userData.userBroadcastQR;
+        const userprivateQR = userData.userPrivateQR;
+        if (userData.isLoggedIn) {
+            const { email , password } = userData;
+            const res = await axios.post("http://10.50.53.155:5000/api/v1/login", {
+              email:email,
+              password:password
+            });
+            if (res.data.success) {
+              console.log("Authenticated successfully");
+              navigation.navigate('Home');
+            }
+        }
+        else console.log("User not logged in");
+      }
+      else console.log("No data found");
+    }
+    catch(error){
+      console.log(error)
+    }
+  },[])
+
   return (
-    <View style={styles.background}>
+    <ScrollView style={styles.background}>
       <View style={styles.rootView}>
         {/* Logo Image */}
         <Image
@@ -18,7 +46,7 @@ export default function LoginScreen() {
         <Text style={styles.headerText}>Welcome Back</Text>
 
         <Formik
-          initialValues={{ email: 'example@gmail.com', password: '' }}
+          initialValues={{ email:'', password: '' }}
           onSubmit={async(values) => {
             try {
               const res = await axios.post("http://10.50.53.155:5000/api/v1/login", {
@@ -33,8 +61,8 @@ export default function LoginScreen() {
                 alert("Invalid Credentials");
               }
             } catch(error) {
-              console.log(error);
-              alert("Request could not be sent");
+              const errorMessage = error.response ? error.response.data.message : 'An error occurred';
+              alert(errorMessage);
             }
           }}
           validate={(values) => {
@@ -107,14 +135,14 @@ export default function LoginScreen() {
           </TouchableOpacity>
         </View>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   background: {
     flex: 1,
-    backgroundColor: '#121212', // Dark background
+    backgroundColor: '#121212',
   },
   rootView: {
     flex: 1,

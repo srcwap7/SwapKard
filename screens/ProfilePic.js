@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Text, View, Button, Image, StyleSheet, TouchableOpacity } from 'react-native';
+import { Text, View, Button, Image, StyleSheet, TouchableOpacity,ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import axios from 'axios';
@@ -65,13 +65,13 @@ export default function ProfilePic({route}) {
         });
       }
     } catch (error) {
-      console.error('Upload error:', error);
-      alert('Error uploading image: ' + error.message);
+      const message = error.response?.data?.message || 'Error uploading image';
+      alert('Error uploading image: ' + message);
     }
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container}>
       <View style={styles.content}>
         <Image
           source={imageUri ? { uri: imageUri } : require('../assets/default_profile.png')}
@@ -93,7 +93,7 @@ export default function ProfilePic({route}) {
           <Text style={styles.skipText}>Skip</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 

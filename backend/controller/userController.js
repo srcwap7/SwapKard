@@ -51,7 +51,6 @@ exports.sendEmailOtp = async(req,res,next) => {
 
 exports.registerUserMobile = async(req,res,next) => {
     try {
-        console.log("Received request to register user:");
         const transactionEmail = req.user.email;
         const authentication_token = req.user.authentication_token;
         const result = await sendEmailVerificationModel.findOne({ userEmail:transactionEmail,authenticationToken:authentication_token });
@@ -63,7 +62,6 @@ exports.registerUserMobile = async(req,res,next) => {
                 message: "Invalid authentication token"
             });
         }
-        console.log("Received request to register user:", req.body);
         const {name,email,password,avatar,job,workAt,age} = req.body;
         if (!name || !email || !password || !age || !job || !workAt) {
           return res.status(400).json({
@@ -90,6 +88,19 @@ exports.registerUserMobile = async(req,res,next) => {
 
         await sendEmailVerificationModel.findOneAndDelete({ email: email, authentication_token: authentication_token });
 
+        const qrCodedataB = JSON.stringify({
+            id: user1._id,
+            type: 0,
+            timestamp: Date.now()
+        });
+        const qrCodedataA = JSON.stringify({
+            id: user1._id,
+            type: 1,
+            timestamp: Date.now()
+        });
+        const qrCodeA = qrCodedataA.toDataURL(qrCodedataA);
+        const qrCodeB = qrCodedataB.toDataURL(qrCodedataB);
+
         const token = await JWT.sign({ id: user1._id, email: user1.email }, process.env.JWT_SECRET, { expiresIn: '200h' });
         const option = {
           httpOnly: false,
@@ -106,10 +117,12 @@ exports.registerUserMobile = async(req,res,next) => {
         });
         return res.status(200).cookie('token', token, option).json({
           success: true,
-          user: user1,
+          userId: user1._id,
+          qrBroadcast: qrCodeB,
+          qrPrivate: qrCodeA,
           token: token
         });
-    } catch (error) {
+    }catch (error) {
         console.log(error);
         return res.status(500).json({
             success: false,
@@ -122,13 +135,9 @@ exports.registerUserMobile = async(req,res,next) => {
 exports.forgotPasswordMobile = async(req,res,next) => {
     try{
         const {email} = req.body;
-
         const result = await user.findOne({email:email});
-
         if (!result){
-
             console.log("Invalid email");
-
             return res.status(401).json({
                 success:false,
                 message:"Invalid email"
@@ -136,7 +145,6 @@ exports.forgotPasswordMobile = async(req,res,next) => {
         }
 
         const otp = Math.floor(1000 + Math.random() * 9000);
-
         await sendForgotPassOTP(req,email,otp);
 
         return res.status(200).json({
@@ -490,7 +498,7 @@ exports.forgotPass = async (req, res, next) => {
         message: "Email sent successfully",
         user1: req.user,
       });
-    } catch (error) {
+    }catch (error) {
       user1.resetPasswordToken = undefined;
       user1.resetPasswordExpite = undefined;
       await user1.save({ validateBeforeSave: false });
@@ -499,7 +507,8 @@ exports.forgotPass = async (req, res, next) => {
         message: `Internal server error: ${error}`,
       });
     }
-  };
+
+};
 
 exports.resetPassword= async(req, res)=>{
     try{
@@ -560,5 +569,214 @@ exports.loadUser=async(req, res, next)=>{
             success:false,
             message:"Internal sever error", error
         })
+    }
+}
+
+exports.updateProf=async(req, res, next)=>{
+    try{
+        const user1=req.user;
+        const user2=await user.findByIdAndUpdate(user1.id , req.body , {
+            new:true,
+            runValidators:true,
+            userFindAndModify:false
+        })
+        await user1.save();
+        req.user=user2;
+        return res.status(200).json({
+            success:true,
+            user2
+        })
+    }catch(error){
+        return res.status(500).json({
+            success:false,
+            message:"Internal server error"
+        })
+    }
+}
+
+exports.generateQRmobile = async(req,res,next)=>{
+    try{
+        const { id } = req.body;
+        const user1 = await user.findById(id);
+        if (!user1){
+            return res.status(400).json({
+                success: false,
+                message: "User doesn't exist"
+            });
+        }
+        const qrCodedataB = JSON.stringify({
+            id: id,
+            type: 0,
+            timestamp: Date.now()
+        });
+        const qrCodedataA = JSON.stringify({
+            id: id,
+            type: 1,
+            timestamp: Date.now()
+        });
+        const qrCodeA = qrCodedataA.toDataURL(qrCodedataA);
+        const qrCodeB = qrCodedataB.toDataURL(qrCodedataB);
+        return res.status(200).json({
+            success:true,
+            qrCodeBroadcast:qrCodeA,
+            qrCodePrivate:qrCodeB
+        });
+    }
+    catch(error){
+        return res.status(500).json({
+            success: false,
+            message: `Internal server error: ${error.message}`
+        });
+    }
+};
+
+exports.generateQR = async (req, res, next) => {
+    try {
+        const { id, isBroadcast } = req.body;
+        const user1 = await user.findById(id);
+
+        if (!user1) {
+            return res.status(400).json({   
+                success: false,
+                message: "User doesn't exist"
+            });
+        }
+
+        let qrCodedata;
+        if (isBroadcast === '1') {
+            qrCodedata = JSON.stringify({
+                id: id,
+                type: 1,
+                timestamp: Date.now() 
+            });
+        } else {
+            qrCodedata = JSON.stringify({
+                id: id,
+                type: 0,
+                timestamp: Date.now()
+            });
+        }
+
+        const qrcodeurl = await qrcode.toDataURL(qrCodedata);
+        user1.qrcodeurl = qrcodeurl;
+        await user1.save();
+
+        return res.status(200).json({
+            success: true,
+            qrType: isBroadcast === '1' ? 'broadcast' : 'connection',
+            qrcodeurl,
+            user1
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+exports.onScan = async(req, res, next)=>{
+    try{
+        const {qrId, myId, isBroadcast} = req.body;
+        const bro = await user.findById(qrId);
+        const me = await user.findById(myId);
+        if(!bro || !me){
+            return res.status(400).json({
+                success:false,
+                message:"User doesn't exists"
+            })
+        }
+        if(isBroadcast == 0){
+            bro.pendingList.push(myID);
+            await bro.save();
+        }
+        if(isBroadcast == 1){
+            me.contactList.push(qrId);
+            await me.save();
+        }
+        return res.status(200).json({
+            success:true,
+            isBroadcast,
+            me,
+            bro
+        })
+    }catch(error){
+        return res.status(500).json({
+            success:false,
+            message:error.message
+        })
+    }
+}
+
+exports.loadPending = async (req, res, next) => {
+    try {
+        const user1 = await user.findById(req.user._id).populate('pendingList', 'name email job workAt avatar age'); 
+
+        if (!user1 || !user1.pendingList) {
+            return res.status(404).json({
+                success: false,
+                message: "No pending connections found"
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            pendings: user1.pendingList // Populated list
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+exports.loadContact = async (req, res, next) => {
+    try {
+        const user1 = await user.findById(req.user._id).populate('contactList', 'name email job workAt avatar age'); 
+
+        if (!user1 || !user1.contactList) {
+            return res.status(404).json({
+                success: false,
+                message: "No pending connections found"
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            contacts: user1.pendingList // Populated list
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+exports.acceptInvite = async(req, res, next) =>{
+    try{
+        const {myId, broId} = req.body;
+        const me = await user.findById(myId);
+        const bro = await user.findById(broId);
+        if(!me || !bro){
+            return res.status(400).json({
+                success: false,
+                message: "User doesn't exists"
+            })
+        }
+        bro.contactList.push(myId);
+        me.contactList.push(broId);
+        return res.status(200).json({
+            success: true,
+            me,
+            bro
+        })
+    }catch(error){
+        return res.status(500).json({
+            success: false,
+            message: error.message
+        });
     }
 }
