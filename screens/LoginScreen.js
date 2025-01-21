@@ -1,77 +1,97 @@
-import { React, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image ,ScrollView} from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image, ScrollView } from 'react-native';
 import { Formik } from 'formik';
 import { useNavigation } from '@react-navigation/native';
 import axios from 'axios';
-import EncryptedStorage from 'react-native-encrypted-storage';
+import * as SecureStore from 'expo-secure-store';
 
 export default function LoginScreen() {
   const navigation = useNavigation();
 
-  useEffect(async()=>{
-    try{
-      const data = await EncryptedStorage.getItem('user_data');
-      if (data) {
-        const userData = JSON.parse(data);
-        const userbroadcastQR = userData.userBroadcastQR;
-        const userprivateQR = userData.userPrivateQR;
-        if (userData.isLoggedIn) {
-            const { email , password } = userData;
+  useEffect(() => {
+    const checkLoggedInUser = async () => {
+      try {
+        const data = await SecureStore.getItemAsync('user_data');
+        if (data) {
+          const userData = JSON.parse(data);
+          const { email, password } = userData;
+
+          if (userData.isLoggedIn) {
             const res = await axios.post("http://10.50.53.155:5000/api/v1/login", {
-              email:email,
-              password:password
+              email: email,
+              password: password
             });
+
             if (res.data.success) {
               console.log("Authenticated successfully");
               navigation.navigate('Home');
             }
+          } else {
+            console.log("User not logged in");
+          }
+        } else {
+          console.log("No data found");
         }
-        else console.log("User not logged in");
+      } catch (error) {
+        console.log(error);
       }
-      else console.log("No data found");
-    }
-    catch(error){
-      console.log(error)
-    }
-  },[])
+    };
+
+    checkLoggedInUser();
+  }, []);
 
   return (
     <ScrollView style={styles.background}>
       <View style={styles.rootView}>
         {/* Logo Image */}
         <Image
-          source={require("/home/coromandelexpress/SwapKard/assets/logo.png")}
+          source={require("../assets/logo.png")} // Update to your Expo assets path
           style={styles.logo}
         />
         <Text style={styles.headerText}>Welcome Back</Text>
 
         <Formik
-          initialValues={{ email:'', password: '' }}
-          onSubmit={async(values) => {
+          initialValues={{ email: '', password: '' }}
+          onSubmit={async (values) => {
             try {
               const res = await axios.post("http://10.50.53.155:5000/api/v1/login", {
                 email: values.email,
                 password: values.password
               });
               if (res.data.success) {
-                console.log("Request Ok")
+                console.log("Request Ok");
+
+                // Save user data securely
+                await SecureStore.setItemAsync(
+                  'user_data',
+                  JSON.stringify({
+                    email: values.email,
+                    password: values.password,
+                    isLoggedIn: true
+                  })
+                );
+
                 navigation.navigate("NextScreen");
               } else {
-                console.log("Request failed")
+                console.log("Request failed");
                 alert("Invalid Credentials");
               }
-            } catch(error) {
-              const errorMessage = error.response ? error.response.data.message : 'An error occurred';
+            } catch (error) {
+              const errorMessage = error.response
+                ? error.response.data.message
+                : 'An error occurred';
               alert(errorMessage);
             }
           }}
           validate={(values) => {
             const errors = {};
             if (!values.email) errors.email = 'Required';
-            else if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i.test(values.email)) 
+            else if (
+              !/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i.test(values.email)
+            )
               errors.email = 'Invalid email address';
             if (!values.password) errors.password = 'Required';
-            else if (values.password.length < 6) 
+            else if (values.password.length < 6)
               errors.password = 'Password must be at least 6 characters';
             return errors;
           }}
@@ -111,7 +131,7 @@ export default function LoginScreen() {
                 )}
               </View>
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.loginButton}
                 onPress={handleSubmit}
               >
@@ -194,7 +214,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   loginButton: {
-    backgroundColor: '#6C63FF', // Vibrant purple accent
+    backgroundColor: '#6C63FF',
     paddingVertical: 15,
     borderRadius: 12,
     marginTop: 10,
@@ -225,7 +245,7 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   linkText: {
-    color: '#6C63FF', // Matching accent color
+    color: '#6C63FF',
     fontSize: 14,
     fontWeight: '600',
   },
