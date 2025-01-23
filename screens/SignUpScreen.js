@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { Formik } from 'formik';
 import PinView from '../components/PinView';
@@ -12,10 +12,12 @@ export default function SignUpScreen() {
   const [counterOver, setCounterOver] = useState(false);
   const [otpmatched, setOtpmatched] = useState(false);
   const navigation = useNavigation();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [resetFlag, setResetFlag] = useState(false);
+
+  // Using useRef to avoid unnecessary re-renders
+  const email = useRef('');
+  const password = useRef('');
+  const name = useRef('');
+  const resetFlag = useRef(false);
 
   useEffect(() => {
     let timer;
@@ -28,17 +30,19 @@ export default function SignUpScreen() {
   }, [isRunning, seconds]);
 
   return (
+  <View style={styles.container}>
     <ScrollView style={styles.background}>
       <View style={styles.rootView}>
         <Text style={styles.headerText}>Create Account</Text>
-        
+
         {!mailSent && (
           <Formik
             initialValues={{ name: '', email: '', password: '', confirmed_password: '' }}
             onSubmit={(values) => {
-              setEmail(values.email);
-              setPassword(values.password);
-              setName(values.name);
+              email.current = values.email;
+              password.current = values.password;
+              name.current = values.name;
+
               axios.post("http://10.50.53.155:5000/api/v1/sendOtp", { email: values.email })
                 .then((res) => {
                   if (res.data.success) {
@@ -149,10 +153,10 @@ export default function SignUpScreen() {
             setOtpmatched={setOtpmatched} 
             counterOver={counterOver} 
             seconds={seconds} 
-            email={email} 
-            name={name} 
-            password={password} 
-            resetFlag={resetFlag}
+            email={email.current} 
+            name={name.current} 
+            password={password.current} 
+            resetFlag={resetFlag.current}
           />
         )}
 
@@ -161,12 +165,21 @@ export default function SignUpScreen() {
             <Text style={styles.resendButtonText}>Resend OTP</Text>
           </TouchableOpacity>
         )}
+
       </View>
     </ScrollView>
+  </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#000000',
+    justifyContent: 'center',
+    paddingTop: 80,
+
+  },
   background: {
     flex: 1,
     backgroundColor: '#121212', // Dark background

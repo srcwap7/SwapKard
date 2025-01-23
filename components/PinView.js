@@ -56,7 +56,7 @@ const PinView = ({ setOtpmatched, counterOver, seconds, email,name,password,rese
                 }}
             />
             {
-                !counterOver && (<Text style={{ color: 'white' }}>Resend OTP after {seconds}</Text>)
+                !counterOver && (<Text style={{ color: 'white' }}>Resend OTP after {seconds} seconds</Text>)
             }
         </View>
     )

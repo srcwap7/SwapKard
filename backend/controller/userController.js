@@ -6,6 +6,7 @@ const crypto=require("crypto");
 const sendEmailVerificationOTP = require("../utils/sendVerificationOTP");
 const sendEmailVerificationModel = require("../models/emailVerification");
 const cloudinary = require("cloudinary").v2;
+const qrcode = require('qrcode');
 require("dotenv").config({path:"/home/coromandelexpress/SwapKard/backend/config/config.env"});
 
 cloudinary.config({
@@ -98,8 +99,8 @@ exports.registerUserMobile = async(req,res,next) => {
             type: 1,
             timestamp: Date.now()
         });
-        const qrCodeA = qrCodedataA.toDataURL(qrCodedataA);
-        const qrCodeB = qrCodedataB.toDataURL(qrCodedataB);
+        const qrCodeA = await qrcode.toDataURL(qrCodedataA);
+        const qrCodeB = await qrcode.toDataURL(qrCodedataB);
 
         const token = await JWT.sign({ id: user1._id, email: user1.email }, process.env.JWT_SECRET, { expiresIn: '200h' });
         const option = {
@@ -303,7 +304,6 @@ exports.registerUser = async (req, res, next) => {
           age
         });
 
-
         const token = await JWT.sign({ id: user1._id, email: user1.email }, process.env.JWT_SECRET, { expiresIn: '200h' });
         const option = {
           httpOnly: false,
@@ -340,10 +340,8 @@ exports.registerUser = async (req, res, next) => {
         const { email, otp } = req.body;
         console.log("Received request to verify email with:", { email, otp });
 
-        if (!email || !otp) {
-            return res.status(400).json({ success: false, message: "Email and OTP are required" });
-        }
-
+        if (!email || !otp) return res.status(400).json({ success: false, message: "Email and OTP are required" });
+        
         const emailver = await sendEmailVerificationModel.findOne({ userEmail: email, otp: otp });
         if (!emailver) {
             console.log("Invalid OTP or email");
@@ -354,7 +352,6 @@ exports.registerUser = async (req, res, next) => {
             return res.status(400).json({ success: false, message: "OTP has expired" });
         }
 
-        // Generate authentication token
         const my_secret_key = process.env.JWT_SECRET;
         if (!my_secret_key) {
             throw new Error("JWT_SECRET is not defined in environment variables");
@@ -387,6 +384,66 @@ exports.registerUser = async (req, res, next) => {
         res.status(500).json({ success: false, message: `Unable to verify email: ${error.message}` });
     }
 };
+
+exports.loginUserMobile = async(req,res,next) => {
+    try {
+        const { email, password } = req.body;
+        if (!email || !password) {
+            return res.status(400).json({
+                success: false,
+                message: "Enter complete data."
+            });
+        }
+        const user1 = await user.findOne({ email });
+        if (!user1) {
+            console.log("User not found");
+            return res.status(400).json({
+                success: false,
+                message: "Invalid email or password"
+            });
+        }
+        const comp = await bcrypt.compare(password, user1.password);
+        if (!comp) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid email or password"
+            });
+        }
+
+        const token = JWT.sign({ id: user1._id, email: user1.email }, process.env.JWT_SECRET, { expiresIn: '120h' });
+
+        const option = {
+            httpOnly: false,
+            secure: true,  
+            sameSite: "none",
+            expires: new Date(Date.now() + 200 * 60 * 60 * 1000) 
+        };
+
+        res.cookie('token', token, option);
+
+        res.cookie('is_auth', true, {
+            httpOnly: false,
+            secure: true,
+            sameSite: "none",
+            expires: new Date(Date.now() + 200 * 60 * 60 * 1000)
+        });
+        
+        const userR = await user.findById(user1._id).populate('pendingList', '_id name email job workAt avatar age').populate('contactList','_id name email job workAt avatar age'); 
+
+        return res.status(200).json({
+            success: true,
+            user:userR,
+            token:token
+        });
+
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            success: false,
+            message: `Internal Server error: ${error}`
+        });
+    }
+}
 
 
 exports.loginUser = async (req, res, next) => {
@@ -429,8 +486,8 @@ exports.loginUser = async (req, res, next) => {
         });
         return res.status(200).json({
             success: true,
-            user1,
-            token
+            user:user1,
+            token:token
         });
     } catch (error) {
         console.log(error);
@@ -592,42 +649,6 @@ exports.updateProf=async(req, res, next)=>{
             message:"Internal server error"
         })
     }
-}
-
-exports.generateQRmobile = async(req,res,next)=>{
-    try{
-        const { id } = req.body;
-        const user1 = await user.findById(id);
-        if (!user1){
-            return res.status(400).json({
-                success: false,
-                message: "User doesn't exist"
-            });
-        }
-        const qrCodedataB = JSON.stringify({
-            id: id,
-            type: 0,
-            timestamp: Date.now()
-        });
-        const qrCodedataA = JSON.stringify({
-            id: id,
-            type: 1,
-            timestamp: Date.now()
-        });
-        const qrCodeA = qrCodedataA.toDataURL(qrCodedataA);
-        const qrCodeB = qrCodedataB.toDataURL(qrCodedataB);
-        return res.status(200).json({
-            success:true,
-            qrCodeBroadcast:qrCodeA,
-            qrCodePrivate:qrCodeB
-        });
-    }
-    catch(error){
-        return res.status(500).json({
-            success: false,
-            message: `Internal server error: ${error.message}`
-        });
-    }
 };
 
 exports.generateQR = async (req, res, next) => {
@@ -722,7 +743,7 @@ exports.loadPending = async (req, res, next) => {
 
         return res.status(200).json({
             success: true,
-            pendings: user1.pendingList // Populated list
+            pendings: user1.pendingList
         });
     } catch (error) {
         return res.status(500).json({
@@ -745,7 +766,7 @@ exports.loadContact = async (req, res, next) => {
 
         return res.status(200).json({
             success: true,
-            contacts: user1.pendingList // Populated list
+            contacts: user1.pendingList 
         });
     } catch (error) {
         return res.status(500).json({
@@ -754,6 +775,8 @@ exports.loadContact = async (req, res, next) => {
         });
     }
 };
+
+
 
 exports.acceptInvite = async(req, res, next) =>{
     try{

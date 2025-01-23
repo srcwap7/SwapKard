@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Text, View, Button, Image, StyleSheet, TouchableOpacity,ScrollView } from 'react-native';
+import { Text, View, Button, Image, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import axios from 'axios';
@@ -71,40 +71,48 @@ export default function ProfilePic({route}) {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.content}>
-        <Image
-          source={imageUri ? { uri: imageUri } : require('../assets/default_profile.png')}
-          style={styles.profileImage}
-        />
-        <Text style={styles.headerText}>Please Choose a Profile Picture</Text>
-        <TouchableOpacity style={styles.uploadButton} onPress={pickImageAsync}>
-          <Text style={styles.buttonText}>Upload</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.proceedButton} onPress={uploadPhoto}>
-          <Text style={styles.buttonText}>Proceed</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.skipButton} onPress={() => navigation.navigate('Details', {
-          email: email,
-          name: name,
-          password: password,
-          token: token,
-        })}>
-          <Text style={styles.skipText}>Skip</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+    <View style={styles.mainContainer}>
+      <ScrollView style={styles.container}>
+        <View style={styles.content}>
+          <Image
+            source={imageUri ? { uri: imageUri } : require('../assets/default_profile.png')}
+            style={styles.profileImage}
+          />
+          <Text style={styles.headerText}>Please Choose a Profile Picture</Text>
+          <TouchableOpacity style={styles.button} onPress={pickImageAsync}>
+            <Text style={styles.buttonText}>Upload</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.button, styles.proceedButton]} onPress={uploadPhoto}>
+            <Text style={styles.buttonText}>Proceed</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.skipButton} onPress={() => navigation.navigate('Details', {
+            email: email,
+            name: name,
+            password: password,
+            token: token,
+          })}>
+            <Text style={styles.skipText}>Skip</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  mainContainer: {
+    flex: 1,
+    backgroundColor: '#000000',
+    padding: 50,
+    justifyContent: 'center',
+  },
   container: {
     flex: 1,
     backgroundColor: '#000000',
   },
   content: {
     flex: 1,
-    gap: 25,
+    gap: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -113,39 +121,41 @@ const styles = StyleSheet.create({
     height: 180,
     borderRadius: 90,
     borderWidth: 3,
-    borderColor: '#00ff00',
+    borderColor: '#4A90E2',
   },
   headerText: {
     color: '#ffffff',
     fontSize: 20,
     fontWeight: '600',
     marginBottom: 20,
+    textAlign: 'center',
   },
-  uploadButton: {
-    backgroundColor: '#ff00ff',
+  button: {
+    backgroundColor: '#4A90E2',
     paddingVertical: 12,
     paddingHorizontal: 30,
     borderRadius: 25,
     marginBottom: 10,
+    width: 200, 
+    alignItems: 'center',
   },
   proceedButton: {
-    backgroundColor: '#00ff00',
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 25,
-    marginBottom: 10,
+    backgroundColor: '#5CB85C', 
   },
   skipButton: {
     paddingVertical: 12,
     paddingHorizontal: 30,
+    width: 200, 
+    alignItems: 'center',
   },
   buttonText: {
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
+    textAlign: 'center',
   },
   skipText: {
-    color: '#ff00ff',
+    color: '#4A90E2', 
     fontSize: 16,
     fontWeight: '600',
   },

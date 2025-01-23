@@ -1,12 +1,47 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image, ScrollView } from 'react-native';
+import { useDispatch } from 'react-redux';
 import { Formik } from 'formik';
 import { useNavigation } from '@react-navigation/native';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import { FileSystem } from 'expo-file-system';
+
 
 export default function LoginScreen() {
   const navigation = useNavigation();
+  const dispatch = useDispatch();
+
+  const downloadImage = async (imageUrl,directory,id) => {
+    try {
+      const directoryUri = `${FileSystem.documentDirectory}user${directory}/profilePics/`;
+      const fileUri = `${directoryUri}${id}_profile_pic.jpg`;
+      const dirInfo = await FileSystem.getInfoAsync(directoryUri);
+      if (!dirInfo.exists) await FileSystem.makeDirectoryAsync(directoryUri, { intermediates: true });
+      const downloadResumable = FileSystem.createDownloadResumable(
+        imageUrl,
+        fileUri
+      );
+      const { uri } = await downloadResumable.downloadAsync();
+      console.log('File saved to:', uri);
+      return uri; 
+    } catch (error) {
+      console.error('Error downloading the image:', error);
+      throw error;
+    }
+  };
+
+  const downloadImageList = (array,name) => {
+    try {
+      for (let i =0 ;i< array.length;i++){
+        const { avatar , _id } = array[i];
+        downloadImage(avatar,name,_id);
+      }
+    } catch (error) {
+      console.error('Error downloading the image:', error);
+      throw error;
+    }
+  };
 
   useEffect(() => {
     const checkLoggedInUser = async () => {
@@ -17,14 +52,15 @@ export default function LoginScreen() {
           const { email, password } = userData;
 
           if (userData.isLoggedIn) {
-            const res = await axios.post("http://10.50.53.155:5000/api/v1/login", {
+            const res = await axios.post("http://10.50.53.155:5000/api/v1/loginMobile", {
               email: email,
               password: password
             });
 
             if (res.data.success) {
-              console.log("Authenticated successfully");
-              navigation.navigate('Home');
+              dispatch({ type: 'SET_USER', payload: res.data.user });
+              console.log(res.data.user);
+              navigation.navigate('HomeScreen');
             }
           } else {
             console.log("User not logged in");
@@ -36,16 +72,16 @@ export default function LoginScreen() {
         console.log(error);
       }
     };
-
     checkLoggedInUser();
   }, []);
 
   return (
+  <View style={{ flex: 1 , justifyContent: 'center'}}>
     <ScrollView style={styles.background}>
       <View style={styles.rootView}>
         {/* Logo Image */}
         <Image
-          source={require("../assets/logo.png")} // Update to your Expo assets path
+          source={require("../assets/logo.png")}
           style={styles.logo}
         />
         <Text style={styles.headerText}>Welcome Back</Text>
@@ -54,24 +90,27 @@ export default function LoginScreen() {
           initialValues={{ email: '', password: '' }}
           onSubmit={async (values) => {
             try {
-              const res = await axios.post("http://10.50.53.155:5000/api/v1/login", {
+              const res = await axios.post("http://10.50.53.155:5000/api/v1/loginMobile", {
                 email: values.email,
                 password: values.password
               });
               if (res.data.success) {
-                console.log("Request Ok");
-
-                // Save user data securely
                 await SecureStore.setItemAsync(
                   'user_data',
                   JSON.stringify({
                     email: values.email,
                     password: values.password,
+                    profilePicUrl: res.data.user.avatar,
+                    userId: res.data.user._id,
+                    keepLoggedIn: true,
                     isLoggedIn: true
                   })
                 );
-
-                navigation.navigate("NextScreen");
+                dispatch({ type: 'SET_USER', payload: res.data.user });
+                downloadImage(res.data.user.avatar,"User",res.data.user._id);
+                downloadImageList(res.data.user.pendingInvites,"pendingList");
+                downloadImageList(res.data.user.contactList,"contactList");   
+                navigation.navigate("HomeScreen");
               } else {
                 console.log("Request failed");
                 alert("Invalid Credentials");
@@ -86,13 +125,9 @@ export default function LoginScreen() {
           validate={(values) => {
             const errors = {};
             if (!values.email) errors.email = 'Required';
-            else if (
-              !/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i.test(values.email)
-            )
-              errors.email = 'Invalid email address';
+            else if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i.test(values.email)) errors.email = 'Invalid email address';
             if (!values.password) errors.password = 'Required';
-            else if (values.password.length < 6)
-              errors.password = 'Password must be at least 6 characters';
+            else if (values.password.length < 6) errors.password = 'Password must be at least 6 characters';
             return errors;
           }}
         >
@@ -156,6 +191,7 @@ export default function LoginScreen() {
         </View>
       </View>
     </ScrollView>
+  </View>
   );
 }
 

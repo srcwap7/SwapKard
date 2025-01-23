@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {View,Text,StyleSheet,TextInput,TouchableOpacity,ScrollView } from 'react-native';
+import {View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { Formik } from 'formik';
 import PinView from '../components/PinView';
 import axios from 'axios';
@@ -65,7 +65,7 @@ export default function ForgotPassword() {
                     onChangeText={handleChange('email')}
                     value={values.email}
                     placeholder="Enter your email"
-                    placeholderTextColor="#666"
+                    placeholderTextColor="#999"
                     style={styles.input}
                   />
                   {touched.email && errors.email && (
@@ -95,7 +95,7 @@ export default function ForgotPassword() {
             />
           )}
 
-          {counterOver && !otpmatched && (
+          {counterOver && mailSent && !otpmatched && (
             <TouchableOpacity 
               style={styles.resendButton}
               onPress={() => {
@@ -120,7 +120,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
     justifyContent: 'center',
     paddingTop: 80,
-
   },
   rootView: {
     flex: 1,
@@ -134,13 +133,13 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     alignItems: 'center',
     padding: 30,
-    borderRadius: 15,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 25,
+    backgroundColor: '#1E1E1E',
     borderWidth: 1,
-    borderColor: '#00ff00',
+    borderColor: '#333333',
   },
   label: {
-    color: '#00ff00',
+    color: 'white',
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 20,
@@ -149,38 +148,43 @@ const styles = StyleSheet.create({
   input: {
     height: 50,
     width: '100%',
-    borderColor: '#ff00ff',
-    borderWidth: 2,
-    borderRadius: 10,
+    borderColor: '#333333',
+    borderWidth: 1,
+    borderRadius: 25,
     marginVertical: 10,
-    paddingHorizontal: 15,
+    paddingHorizontal: 20,
     color: '#ffffff',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: '#2A2A2A',
     fontSize: 16,
   },
   errorText: {
-    color: '#ff0000',
+    color: '#ff6b6b',
     fontSize: 14,
     marginTop: 5,
     marginBottom: 10,
   },
   submitButton: {
-    backgroundColor: '#ff00ff',
+    backgroundColor: '#4A90E2',
     width: '100%',
-    padding: 15,
-    borderRadius: 10,
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 25,
     marginTop: 20,
   },
   resendButton: {
-    backgroundColor: '#00ff00',
+    backgroundColor: '#5CB85C',
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: 15,
-    borderRadius: 10,
+    borderRadius: 25,
     minWidth: 200,
   },
   buttonText: {
     color: '#ffffff',
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: '600',
     textAlign: 'center',
   }
 });
