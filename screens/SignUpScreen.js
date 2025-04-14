@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { Formik } from 'formik';
 import PinView from '../components/PinView';
-import { useNavigation } from '@react-navigation/native';
+import Icon from 'react-native-vector-icons/Ionicons';
 import axios from 'axios';
 
 export default function SignUpScreen() {
@@ -11,9 +11,9 @@ export default function SignUpScreen() {
   const [seconds, setSeconds] = useState(200);
   const [counterOver, setCounterOver] = useState(false);
   const [otpmatched, setOtpmatched] = useState(false);
-  const navigation = useNavigation();
-
-  // Using useRef to avoid unnecessary re-renders
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  
   const email = useRef('');
   const password = useRef('');
   const name = useRef('');
@@ -43,7 +43,7 @@ export default function SignUpScreen() {
               password.current = values.password;
               name.current = values.name;
 
-              axios.post("http://10.50.53.155:5000/api/v1/sendOtp", { email: values.email })
+              axios.post("http://10.50.27.202:5000/api/v1/sendOtp", { email: values.email })
                 .then((res) => {
                   if (res.data.success) {
                     setMailSent(true);
@@ -106,35 +106,45 @@ export default function SignUpScreen() {
                 </View>
 
                 <View style={styles.inputGroup}>
-                  <Text style={styles.labelText}>Password</Text>
-                  <TextInput
-                    onBlur={handleBlur('password')}
-                    onChangeText={handleChange('password')}
-                    secureTextEntry
-                    value={values.password}
-                    placeholder="Create password"
-                    placeholderTextColor="#666"
-                    style={styles.input}
-                  />
-                  {touched.password && errors.password && (
-                    <Text style={styles.errorText}>{errors.password}</Text>
-                  )}
+                    <Text style={styles.labelText}>Password</Text>
+                    <View style={styles.passwordContainer}>
+                      <TextInput
+                        onBlur={handleBlur('password')}
+                        onChangeText={handleChange('password')}
+                        secureTextEntry={!showPassword}
+                        value={values.password}
+                        placeholder="Create password"
+                        placeholderTextColor="#666"
+                        style={styles.input}
+                      />
+                      <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+                        <Icon name={showPassword ? "eye-off" : "eye"} size={20} color="#888" />
+                      </TouchableOpacity>
+                    </View>
+                    {touched.password && errors.password && (
+                      <Text style={styles.errorText}>{errors.password}</Text>
+                    )}
                 </View>
 
                 <View style={styles.inputGroup}>
-                  <Text style={styles.labelText}>Confirm Password</Text>
-                  <TextInput
-                    onBlur={handleBlur('confirmed_password')}
-                    onChangeText={handleChange('confirmed_password')}
-                    value={values.confirmed_password}
-                    placeholder="Confirm password"
-                    placeholderTextColor="#666"
-                    style={styles.input}
-                    secureTextEntry
-                  />
-                  {touched.confirmed_password && errors.confirmed_password && (
-                    <Text style={styles.errorText}>{errors.confirmed_password}</Text>
-                  )}
+                    <Text style={styles.labelText}>Confirm Password</Text>
+                    <View style={styles.passwordContainer}>
+                      <TextInput
+                        onBlur={handleBlur('confirmed_password')}
+                        onChangeText={handleChange('confirmed_password')}
+                        secureTextEntry={!showConfirmPassword}
+                        value={values.confirmed_password}
+                        placeholder="Confirm password"
+                        placeholderTextColor="#666"
+                        style={styles.input}
+                      />
+                      <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeIcon}>
+                        <Icon name={showConfirmPassword ? "eye-off" : "eye"} size={20} color="#888" />
+                      </TouchableOpacity>
+                    </View>
+                    {touched.confirmed_password && errors.confirmed_password && (
+                      <Text style={styles.errorText}>{errors.confirmed_password}</Text>
+                    )}
                 </View>
 
                 <TouchableOpacity 
@@ -173,95 +183,17 @@ export default function SignUpScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000000',
-    justifyContent: 'center',
-    paddingTop: 80,
-
-  },
-  background: {
-    flex: 1,
-    backgroundColor: '#121212', // Dark background
-  },
-  rootView: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  headerText: {
-    fontSize: 28,
-    fontWeight: '600',
-    color: '#ffffff',
-    marginBottom: 30,
-    letterSpacing: 0.5,
-  },
-  formContainer: {
-    width: '100%',
-    maxWidth: 340,
-    marginVertical: 20,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  labelText: {
-    color: '#ffffff',
-    fontSize: 16,
-    marginBottom: 8,
-    fontWeight: '500',
-  },
-  input: {
-    height: 50,
-    width: '100%',
-    backgroundColor: '#1E1E1E',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    color: '#ffffff',
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  errorText: {
-    color: '#FF4D4D',
-    fontSize: 12,
-    marginTop: 5,
-    fontWeight: '500',
-  },
-  signupButton: {
-    backgroundColor: '#6C63FF', 
-    paddingVertical: 15,
-    borderRadius: 12,
-    marginTop: 10,
-    shadowColor: '#6C63FF',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
-    elevation: 8,
-  },
-  signupButtonText: {
-    color: '#ffffff',
-    textAlign: 'center',
-    fontSize: 18,
-    fontWeight: '600',
-    letterSpacing: 0.5,
-  },
-  resendButton: {
-    backgroundColor: 'transparent',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#6C63FF',
-    marginTop: 20,
-  },
-  resendButtonText: {
-    color: '#6C63FF',
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
+  container: { flex: 1, backgroundColor: '#000000', justifyContent: 'center', paddingTop: 80 },
+  background: { flex: 1, backgroundColor: '#121212' },
+  rootView: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 },
+  headerText: { fontSize: 28, fontWeight: '600', color: '#ffffff', marginBottom: 30, letterSpacing: 0.5 },
+  formContainer: { width: '100%', maxWidth: 340, marginVertical: 20 },
+  inputGroup: { marginBottom: 20 },
+  labelText: { color: '#ffffff', fontSize: 16, marginBottom: 8, fontWeight: '500' },
+  input: { flex: 1, height: 50, backgroundColor: '#1E1E1E', borderRadius: 12, paddingHorizontal: 16, color: '#ffffff', fontSize: 16, borderWidth: 1, borderColor: '#333' },
+  passwordContainer: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, borderWidth: 1, borderColor: '#333', backgroundColor: '#1E1E1E' },
+  eyeIcon: { padding: 10 },
+  errorText: { color: '#FF4D4D', fontSize: 12, marginTop: 5, fontWeight: '500' },
+  signupButton: { backgroundColor: '#6C63FF', paddingVertical: 15, borderRadius: 12, marginTop: 10 },
+  signupButtonText: { color: '#ffffff', textAlign: 'center', fontSize: 18, fontWeight: '600', letterSpacing: 0.5 }
 });

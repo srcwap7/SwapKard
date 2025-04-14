@@ -7,7 +7,7 @@ const sendEmailVerificationOTP = require("../utils/sendVerificationOTP");
 const sendEmailVerificationModel = require("../models/emailVerification");
 const cloudinary = require("cloudinary").v2;
 const qrcode = require('qrcode');
-require("dotenv").config({path:"/home/coromandelexpress/SwapKard/backend/config/config.env"});
+require("dotenv").config({path:"/home/coromandelexpress/SwapKard2.0/backend/config/config.env"});
 
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -54,7 +54,7 @@ exports.registerUserMobile = async(req,res,next) => {
     try {
         const transactionEmail = req.user.email;
         const authentication_token = req.user.authentication_token;
-        const result = await sendEmailVerificationModel.findOne({ userEmail:transactionEmail,authenticationToken:authentication_token });
+        const result = await sendEmailVerificationModel.findOneAndDelete({ userEmail:transactionEmail,authenticationToken:authentication_token });
         if (!result) {
             console.log(transactionEmail,authentication_token);
             console.log(result);
@@ -63,7 +63,7 @@ exports.registerUserMobile = async(req,res,next) => {
                 message: "Invalid authentication token"
             });
         }
-        const {name,email,password,avatar,job,workAt,age} = req.body;
+        const {name,email,password,avatar,job,workAt,age,phone} = req.body;
         if (!name || !email || !password || !age || !job || !workAt) {
           return res.status(400).json({
             message: "Missing info"
@@ -77,52 +77,51 @@ exports.registerUserMobile = async(req,res,next) => {
           });
         }
         const hashedPass = await bcrypt.hash(password, 10);
-        const user1 = await user.create({
-          name,
-          email,
-          password: hashedPass,
-          avatar:avatar,
-          job,
-          workAt,
-          age
-        });
 
-        await sendEmailVerificationModel.findOneAndDelete({ email: email, authentication_token: authentication_token });
+        await sendEmailVerificationModel.findOneAndDelete({email:email,authenticationToken: authentication_token});
+
+        const privateQRSalt = crypto.randomBytes(48).toString('hex');
+
+        const user1 = await user.create({
+            name,
+            email,
+            password: hashedPass,
+            avatar:avatar,
+            phone:phone,
+            job,
+            workAt,
+            broadcastQRsalt:privateQRSalt,
+            age
+        });
 
         const qrCodedataB = JSON.stringify({
             id: user1._id,
             type: 0,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            randomHash: privateQRSalt,
         });
+
+
         const qrCodedataA = JSON.stringify({
             id: user1._id,
             type: 1,
-            timestamp: Date.now()
+            timestamp: Date.now(),
         });
+
         const qrCodeA = await qrcode.toDataURL(qrCodedataA);
         const qrCodeB = await qrcode.toDataURL(qrCodedataB);
 
-        const token = await JWT.sign({ id: user1._id, email: user1.email }, process.env.JWT_SECRET, { expiresIn: '200h' });
-        const option = {
-          httpOnly: false,
-          secure: true,
-          sameSite: "none",
-          expires: new Date(Date.now() + 200 * 60 * 60 * 1000)
-        };
-        req.user = user1;
-        res.cookie('is_auth', true, {
-          httpOnly: false,
-          secure: true,
-          sameSite: "none",
-          expires: new Date(Date.now() + 200 * 60 * 60 * 1000)
-        });
-        return res.status(200).cookie('token', token, option).json({
+        const token = JWT.sign({ id: user1._id, email: user1.email }, process.env.JWT_SECRET, { expiresIn: '200h' });
+        
+        return res.status(200).json({
           success: true,
           userId: user1._id,
           qrBroadcast: qrCodeB,
           qrPrivate: qrCodeA,
+          user: user1,
           token: token
         });
+
     }catch (error) {
         console.log(error);
         return res.status(500).json({
@@ -264,7 +263,7 @@ exports.resetPasswordMobile = async(req,res,next) => {
 
 exports.registerUser = async (req, res, next) => {
     try {
-        const {name,email,password,job,workAt,age} = req.body;
+        const {name,email,password,job,workAt,age,phone} = req.body;
         console.log(req.files);
         const profilePicture = req.files?.profilePicture;
 
@@ -299,6 +298,7 @@ exports.registerUser = async (req, res, next) => {
           email,
           password: hashedPass,
           avatar: profilePictureUrl,
+          phone:phone,
           job,
           workAt,
           age
@@ -385,7 +385,7 @@ exports.registerUser = async (req, res, next) => {
     }
 };
 
-exports.loginUserMobile = async(req,res,next) => {
+exports.loginUserMobileSignedUp = async(req,res,next)=>{
     try {
         const { email, password } = req.body;
         if (!email || !password) {
@@ -412,28 +412,12 @@ exports.loginUserMobile = async(req,res,next) => {
 
         const token = JWT.sign({ id: user1._id, email: user1.email }, process.env.JWT_SECRET, { expiresIn: '120h' });
 
-        const option = {
-            httpOnly: false,
-            secure: true,  
-            sameSite: "none",
-            expires: new Date(Date.now() + 200 * 60 * 60 * 1000) 
-        };
-
-        res.cookie('token', token, option);
-
-        res.cookie('is_auth', true, {
-            httpOnly: false,
-            secure: true,
-            sameSite: "none",
-            expires: new Date(Date.now() + 200 * 60 * 60 * 1000)
-        });
-        
-        const userR = await user.findById(user1._id).populate('pendingList', '_id name email job workAt avatar age').populate('contactList','_id name email job workAt avatar age'); 
+        const userR = await user.findById(user1._id).select(["_id name email deltaPending deltaConnection"]).populate('deltaPending', '_id name email job workAt avatar age').populate('deltaConnection','_id name email job workAt avatar age'); 
 
         return res.status(200).json({
             success: true,
             user:userR,
-            token:token
+            token: token
         });
 
     } catch (error) {
@@ -444,6 +428,95 @@ exports.loginUserMobile = async(req,res,next) => {
         });
     }
 }
+
+async function manuallyPopulateList(list,fieldsToSelect) {
+    const ids = list.map(entry => entry.id);
+    const users = await user.find({ _id: {$in:ids} }, fieldsToSelect).lean();
+    const userMap = {};
+    users.forEach(u => {
+        userMap[u._id.toString()] = u;
+    });
+    return list.map(entry => (userMap[entry.id.toString()]||null));
+}
+  
+
+exports.loginUserMobile = async (req, res, next) => {
+    try {
+        const { email, password } = req.body;
+        if (!email || !password) {
+            return res.status(400).json({
+                success: false,
+                message: "Enter complete data."
+            });
+        }
+
+        const user1 = await user.findOne({ email });
+        if (!user1) {
+            console.log("User not found");
+            return res.status(400).json({
+                success: false,
+                message: "Invalid email or password"
+            });
+        }
+
+        const comp = await bcrypt.compare(password, user1.password);
+        if (!comp) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid email or password"
+            });
+        }
+
+        const token = JWT.sign({ id: user1._id, email: user1.email }, process.env.JWT_SECRET, { expiresIn: '120h' });
+        const userR = await user.findById(user1._id).lean();
+
+        const fields          = '_id name email job workAt avatar phone age';
+        userR.pendingList     = await manuallyPopulateList(userR.pendingList || [], fields);
+        userR.deltaPending    = await manuallyPopulateList(userR.deltaPending || [], fields);
+        userR.contactList     = await manuallyPopulateList(userR.contactList || [],fields);
+        userR.deltaConnection = await manuallyPopulateList(userR.deltaConnection || [],fields);
+
+        console.log(userR);
+
+        const qrCodedataB = JSON.stringify({
+            id: user1._id,
+            type: 0,
+            timestamp: Date.now(),
+            randomHash: user1.broadcastQRsalt
+        });
+
+
+        const qrCodedataA = JSON.stringify({
+            id: user1._id,
+            type: 1,
+            timestamp: Date.now(),
+        });
+
+        const qrCodeA = await qrcode.toDataURL(qrCodedataA);
+        const qrCodeB = await qrcode.toDataURL(qrCodedataB);
+
+
+        // Manually construct the arrays for each list
+        //const contactList = userR.contactList.map(contact=>(populateUser(contact)));
+        
+        //console.log(contactList);
+
+        return res.status(200).json({
+            success:true,
+            user:userR,
+            qrBroadcast: qrCodeB,
+            qrPrivate: qrCodeA,
+            token: token
+        });
+
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            success: false,
+            message: `Internal Server error: ${error}`
+        });
+    }
+};
 
 
 exports.loginUser = async (req, res, next) => {
@@ -540,7 +613,7 @@ exports.forgotPass = async (req, res, next) => {
     const resetToken = user1.getresetpass();
     await user1.save({ validateBeforeSave: false });
   
-    const resetPassURL = `http://10.50.53.155:5000/api/v1/resetPass/${resetToken}`;
+    const resetPassURL = `http://10.50.27.202:5000/api/v1/resetPass/${resetToken}`;
   
     const message = `Your password reset token is: \n\n ${resetPassURL} \n\nIf you have not send this request, please ignore.`;
   

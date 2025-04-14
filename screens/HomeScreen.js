@@ -1,7 +1,15 @@
-import React, { useState, useRef} from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing, TouchableWithoutFeedback, Dimensions } from 'react-native';
+import React, { useState, useRef, useEffect} from 'react';
+import {View,Text,TouchableOpacity,StyleSheet,Animated,Easing,TouchableWithoutFeedback,Button} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import QRCodeComp from '../components/QRcodeUrl';
+import io from 'socket.io-client';
+import QRScanner from '../components/Scanner';
+import { useSelector, useDispatch } from 'react-redux';
+import { getContactList, getPendingList, insertPendingUser, insertContactUser,deleteContactUser } from '../utils/database';
+import { EventEmitter } from 'expo';
+import * as FileSystem from 'expo-file-system';
+import { useNavigation } from '@react-navigation/native';
+import { deleteContactFile } from '../utils/fileManipulation';
 
 export default function HomeScreen() {
   const isBroadcast = useRef("broadcast");
@@ -10,8 +18,125 @@ export default function HomeScreen() {
   const [selectedBroadcastQRCode, setSelectedBroadcastQRCode] = useState(false);
   const [selectedPrivateQRCode, setSelectedPrivateQRCode] = useState(false);
   const [selectedHome, setSelectedHome] = useState(true);
+  const [isConnected, setIsConnected] = useState(false);
   const menuSlideAnim = useRef(new Animated.Value(-300)).current;
+  const userObject = useSelector((state) => state.user);
+  const [socket,setSocket] = useState(null);
+  const eventEmitter = new EventEmitter();
+  const navigation = useNavigation();
 
+  const dispatch = useDispatch();
+
+  async function saveImageToFileSystem(imageUri, filePath) {
+    try {
+      const directoryPath = FileSystem.documentDirectory + filePath.substring(0, filePath.lastIndexOf('/'));
+      const filePathFull = FileSystem.documentDirectory + filePath;
+      const dirInfo = await FileSystem.getInfoAsync(directoryPath);
+      if (!dirInfo.exists) {
+        await FileSystem.makeDirectoryAsync(directoryPath, { intermediates: true });
+      }
+      const response = await fetch(imageUri);
+      const blob = await response.blob();
+      const reader = new FileReader();
+      reader.readAsDataURL(blob);
+      await new Promise((resolve, reject) => {
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error);
+      });
+      const base64 = reader.result.split(',')[1];
+      await FileSystem.writeAsStringAsync(filePathFull, base64, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      console.log('Image saved to file system:', filePathFull);
+      return filePathFull;
+    } catch (error) {
+      console.error('Error saving image to file system:', error);
+    }
+  }
+
+  useEffect(() => {
+    if (!isConnected){
+      const token = userObject.user.token;
+      console.log("Token is",token);
+      const newSocket = io('http://10.50.27.202:5000',{
+        auth: {
+          token:token
+        }
+      });
+      
+      setIsConnected(true);
+      setSocket(newSocket);
+
+      newSocket.on('connect', () => {
+        console.log('Connected to the socket io server');
+        newSocket.emit('fetchedUpdates',{senderId:userObject.user.id});
+      });
+
+      newSocket.on('requestReceived',async(data)=>{
+        try{
+          const requestUser = data.user;
+          const { _id } = requestUser;
+          await saveImageToFileSystem(requestUser.avatar,`userpendingList/profilePics/${_id}_profile_pic.jpg`);
+          eventEmitter.emit('requestReceived',data.user);
+          insertPendingUser(
+            requestUser._id,
+            requestUser.name,
+            requestUser.email,
+            requestUser.job,       
+            requestUser.workAt,
+            requestUser.phone,
+            requestUser.avatar 
+          );
+          dispatch({type:'RECEIVED_REQUEST',payload:requestUser});
+        }
+        catch(error){
+          console.log("Error in receiving request");
+          console.log(error);
+        }
+      });
+
+      newSocket.on('requestAccepted',async(data)=>{
+        try{
+          const requestUser = data.accepter;
+          const { _id } = requestUser;
+          saveImageToFileSystem(requestUser.avatar,`usercontactList/profilePics/${_id}_profile_pic.jpg`);
+          await insertContactUser(
+            requestUser._id,
+            requestUser.name,
+            requestUser.email,
+            requestUser.job,
+            requestUser.workAt,
+            requestUser.phone,
+            requestUser.avatar,
+            requestUser.age
+          );
+          dispatch({type:'ACCEPTED_REQUEST',payload:requestUser});
+        }
+        catch(error){
+          console.log("Error in accepting request");
+          console.log(error);
+        }
+      });
+
+      newSocket.on('deletedConnection',async(data)=>{
+        try{
+          const deleterId = data.deleterId;
+          deleteContactFile(deleterId);
+          deleteContactUser(deleterId);
+          dispatch({type:'REMOVE_CONNECTION',payload:deleterId});
+        }
+        catch(error){
+          console.log(error);
+        }
+      })
+
+      newSocket.on('disconnect', () => {
+        console.log('Disconnected from the socket io server');
+      });
+
+    }
+  },[]);
+  
   const toggleMenu = () => {
     if (menuVisible) {
       Animated.timing(menuSlideAnim, {
@@ -75,8 +200,8 @@ export default function HomeScreen() {
             { text: 'Home', onPress: handleHomeClick },
             { text: 'Broadcast QR', onPress: handleBroadcastQRCodeClick },
             { text: 'Private QR', onPress: handlePrivateQRCodeClick },
-            { text: 'Connections', onPress: () => alert("Connections") },
-            { text: 'Pending Invites', onPress: () => alert("Your pending invites") }
+            { text: 'Connections', onPress: () =>  navigation.navigate('Connections',{socket:socket}) },
+            { text: 'Pending Invites', onPress: () => navigation.navigate('PendingUsersPage',{socket:socket}) },
           ].map((item, index) => (
             <TouchableOpacity 
               key={index} 
@@ -98,7 +223,7 @@ export default function HomeScreen() {
 
         <View style={styles.content}>
           { selectedHome && 
-            (<Text style={styles.contentText}>Welcome to the app!</Text>)
+              (<QRScanner socket={socket}/>)
           }
           {selectedBroadcastQRCode && (
             <View style={styles.qrCodeWrapper}>
@@ -111,6 +236,21 @@ export default function HomeScreen() {
             </View>
           )}
         </View>
+
+        <Button
+        title="debugger"
+        onPress={
+          async()=>{
+            console.log("Pending List as on redux is",userObject.user.pendingList);
+            const x = await getPendingList();
+            console.log("Pending List as on disk is ",x);
+            console.log("Contact List as on redux is",userObject.user.contactList);
+            const y = await getContactList();
+            console.log("Contact List as on disk is ",y);
+          }
+        }>
+          debugger
+        </Button>
       </View>
     </TouchableWithoutFeedback>
   );

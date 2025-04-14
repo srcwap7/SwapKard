@@ -35,7 +35,26 @@ const userSchema=mongoose.Schema({
     age:{
         type:Number
     },
-    qrcodeurl:{
+    dirty:{
+        type:Boolean,
+        default:false
+    },
+    deltaConnection:[{
+        id:{
+            type:mongoose.Schema.ObjectId,
+        }
+    }],
+    deltaPending:[{
+        id:{
+            type:mongoose.Schema.ObjectId,
+        }
+    }],
+    deletedConnections:[{
+        id:{
+            type:mongoose.Schema.ObjectId,
+        }
+    }],
+    broadcastQRsalt:{
         type:String
     },
     pendingList:[{

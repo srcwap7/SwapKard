@@ -7,6 +7,8 @@ import Details from './screens/Details'
 import ForgotPassword from './screens/ForgotPassword';
 import ForgotPasswordConfirmation from './screens/ForgotPassConf';
 import HomeScreen from './screens/HomeScreen';
+import PendingUsersPage from './components/pendingList';
+import ContactsPage from './components/contactList';
 
 
 const Stack = createStackNavigator();
@@ -22,6 +24,8 @@ export default function App() {
          <Stack.Screen name="ForgotPassword" component={ForgotPassword} />
          <Stack.Screen name="ForgotPasswordConfirmation" component={ForgotPasswordConfirmation} />
          <Stack.Screen name="HomeScreen" component={HomeScreen} />
+         <Stack.Screen name="PendingUsersPage" component={PendingUsersPage} />
+         <Stack.Screen name="Connections" component={ContactsPage} />
       </Stack.Navigator>
     </NavigationContainer>
   );

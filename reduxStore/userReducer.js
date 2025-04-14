@@ -6,6 +6,7 @@ const initialState = {
       password: null,
       pendingList: [],
       contactList: [],
+      token: null,
     },
   };
   
@@ -22,6 +23,7 @@ const initialState = {
             password: action.payload.password,
             pendingList: action.payload.pendingList,
             contactList: action.payload.contactList,
+            token: action.payload.token,
           },
         };
   
@@ -33,6 +35,15 @@ const initialState = {
             contactList: [...state.user.contactList, action.payload],
           },
         };
+
+      case 'ACCEPTED_REQUEST':
+        return{
+          ...state,
+          user:{
+            ...state.user,
+            contactList:[...state.user.contactList,action.payload],
+          }
+        }
   
       case 'RECEIVED_REQUEST':
         return {
@@ -49,7 +60,7 @@ const initialState = {
           user: {
             ...state.user,
             contactList: state.user.contactList.filter(
-              contact => contact.email !== action.payload
+              contact => contact._id !== action.payload
             ),
           },
         };
@@ -60,7 +71,7 @@ const initialState = {
           user: {
             ...state.user,
             pendingList: state.user.pendingList.filter(
-              pending => pending.email !== action.payload
+              pending => pending._id !== action.payload
             ),
           },
         };

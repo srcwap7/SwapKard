@@ -22,8 +22,8 @@ export default function YourComponent({flag}) {
 
   return (
     <View style={styles.container}>
-      {privateQR && <Text style={styles.qrCodeText}>Private QR Code</Text>}
       {!privateQR && <Text style={styles.qrCodeText}>Broadcast QR Code</Text>}
+      {privateQR && <Text style={styles.qrCodeText}>Private QR Code</Text>}
       {imageUri && (
         <View style={styles.imageWrapper}>
           <Image

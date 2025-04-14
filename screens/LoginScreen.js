@@ -1,16 +1,45 @@
-import React, { useEffect } from 'react';
+import React, { useEffect , useRef} from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image, ScrollView } from 'react-native';
 import { useDispatch } from 'react-redux';
 import { Formik } from 'formik';
 import { useNavigation } from '@react-navigation/native';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
-import { FileSystem } from 'expo-file-system';
-
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system';
+import * as SQLite from 'expo-sqlite';
+import {initializeDatabase,getPendingList,insertPendingUser,getContactList,insertContactUser,deleteContactUser} from '../utils/database';
+import { deleteContactFile } from '../utils/fileManipulation';
 
 export default function LoginScreen() {
   const navigation = useNavigation();
   const dispatch = useDispatch();
+  const hasPreviousEntry = useRef(false);
+
+  const clearAppData = async () => {
+    try {
+      await AsyncStorage.clear();
+      console.log('AsyncStorage cleared');
+      const dbName = 'UserDB.db';
+      const db = await SQLite.openDatabaseAsync(dbName);
+      await db.execAsync('DROP TABLE IF EXISTS pendingList');
+      await db.execAsync('DROP TABLE IF EXISTS contactList');
+      console.log('SQLite database cleared');
+      const directory = FileSystem.documentDirectory;
+      const files = await FileSystem.readDirectoryAsync(directory);
+      await Promise.all(
+        files.map(file =>
+          FileSystem.deleteAsync(`${directory}${file}`, { idempotent: true })
+        )
+      );
+      console.log('File system cleared');
+      const profilePicsDir = `${FileSystem.documentDirectory}user/profilePics/pendingList/`;
+      await FileSystem.deleteAsync(profilePicsDir, { idempotent: true });
+      console.log('Profile pics directory cleared');
+    } catch (error) {
+      console.error('Error clearing app data:', error);
+    }
+  };
 
   const downloadImage = async (imageUrl,directory,id) => {
     try {
@@ -26,20 +55,90 @@ export default function LoginScreen() {
       console.log('File saved to:', uri);
       return uri; 
     } catch (error) {
-      console.error('Error downloading the image:', error);
+      console.error('Errora downloading the images:', error);
       throw error;
     }
   };
 
-  const downloadImageList = (array,name) => {
+  const saveQRCode = async (fileName, base64Content) => {
     try {
-      for (let i =0 ;i< array.length;i++){
-        const { avatar , _id } = array[i];
-        downloadImage(avatar,name,_id);
-      }
+      const userDirectory = `${FileSystem.documentDirectory}user/`;
+      const filePath = `${userDirectory}${fileName}`;
+      const dirInfo = await FileSystem.getInfoAsync(userDirectory);
+      if (!dirInfo.exists) await FileSystem.makeDirectoryAsync(userDirectory, { intermediates: true });
+      const cleanBase64Content = base64Content.replace(/^data:image\/\w+;base64,/, '');
+      await FileSystem.writeAsStringAsync(filePath,cleanBase64Content,{encoding: FileSystem.EncodingType.Base64,});
+      console.log('File saved to:', filePath);
+      return filePath;
+
     } catch (error) {
-      console.error('Error downloading the image:', error);
-      throw error;
+        console.error('Error saving file:', error);
+        alert('Disk full or other error occurred while saving file.');
+    }
+  };
+
+  const deleteConnections = async(array)=>{
+    if (array){
+      for (let i=0;i<array.length;i+=1){
+        var id = array[i];
+        deleteContactFile(id);
+        deleteContactUser(id);
+      }
+    }
+  };
+
+
+  const downloadImageList = async(array,name) => {
+    if (array){
+      try {
+        for (let i =0 ;i< array.length;i++){
+          const { avatar , _id } = array[i];
+          downloadImage(avatar,name,_id);
+        }
+      } catch (error) {
+        console.error('Errorb downloading the imagex:', error);
+        throw error;
+      }
+    }
+  };
+
+  const saveToDatabasePending = async(dataArray)=>{
+    if (dataArray){
+      try {
+        for (let i=0;i<dataArray.length;i++){
+          const { _id,name,email,job,workAt,phone,avatar,age} = dataArray[i];
+          await insertPendingUser(_id,name,email,job,workAt,phone,avatar,age).then(
+            ()=>console.log('success')
+          ).catch(
+            (error)=>{
+              console.log(error);
+            }
+          )
+        }
+
+      } catch (error) {
+        console.error('Error saving to database:', error);
+      }
+    }
+  };
+
+  const saveToDatabaseContact = async(dataArray)=>{
+    if (dataArray){
+      try {
+        for (let i=0;i<dataArray.length;i++){
+          const { _id,name,email,phone,job,workAt,avatar,age} = dataArray[i];
+          await insertContactUser(_id,name,email,job,workAt,phone,avatar,age).then(
+            ()=>console.log('success')
+          ).catch(
+            (error)=>{
+              console.log(error);
+            }
+          )
+        }
+
+      } catch (error) {
+        console.error('Error saving to database:', error);
+      }
     }
   };
 
@@ -48,38 +147,58 @@ export default function LoginScreen() {
       try {
         const data = await SecureStore.getItemAsync('user_data');
         if (data) {
+          console.log("Data found")
           const userData = JSON.parse(data);
           const { email, password } = userData;
 
           if (userData.isLoggedIn) {
-            const res = await axios.post("http://10.50.53.155:5000/api/v1/loginMobile", {
+            console.log(userData);
+            const res = await axios.post("http://10.50.27.202:5000/api/v1/loginMobileSignedUp ", {
               email: email,
               password: password
             });
 
             if (res.data.success) {
-              dispatch({ type: 'SET_USER', payload: res.data.user });
               console.log(res.data.user);
+              downloadImageList(res.data.user.deltaPending,'pendingList');
+              downloadImageList(res.data.user.deltaConnection,'contactList');
+
+              saveToDatabasePending(res.data.user.deltaPending);
+              saveToDatabaseContact(res.data.user.deltaConnection);
+
+              await deleteConnections(res.data.user.deletedConnections);
+
+              const currentPendingList = await getPendingList();
+              const currentContactList = await getContactList();
+
+              res.data.user.pendingList = currentPendingList || [];
+              res.data.user.contactList = currentContactList || [];
+              
+              res.data.user.token=res.data.token;
+              console.log(res.data.user);
+              dispatch({ type: 'SET_USER', payload: res.data.user });
               navigation.navigate('HomeScreen');
+
             }
           } else {
             console.log("User not logged in");
           }
         } else {
+          hasPreviousEntry.current = false;
           console.log("No data found");
         }
       } catch (error) {
-        console.log(error);
+        console.log("Error:", error);
+
       }
     };
     checkLoggedInUser();
-  }, []);
+  },[]);
 
   return (
   <View style={{ flex: 1 , justifyContent: 'center'}}>
     <ScrollView style={styles.background}>
       <View style={styles.rootView}>
-        {/* Logo Image */}
         <Image
           source={require("../assets/logo.png")}
           style={styles.logo}
@@ -90,35 +209,98 @@ export default function LoginScreen() {
           initialValues={{ email: '', password: '' }}
           onSubmit={async (values) => {
             try {
-              const res = await axios.post("http://10.50.53.155:5000/api/v1/loginMobile", {
-                email: values.email,
-                password: values.password
-              });
-              if (res.data.success) {
-                await SecureStore.setItemAsync(
-                  'user_data',
-                  JSON.stringify({
-                    email: values.email,
-                    password: values.password,
-                    profilePicUrl: res.data.user.avatar,
-                    userId: res.data.user._id,
-                    keepLoggedIn: true,
-                    isLoggedIn: true
-                  })
-                );
-                dispatch({ type: 'SET_USER', payload: res.data.user });
-                downloadImage(res.data.user.avatar,"User",res.data.user._id);
-                downloadImageList(res.data.user.pendingInvites,"pendingList");
-                downloadImageList(res.data.user.contactList,"contactList");   
-                navigation.navigate("HomeScreen");
-              } else {
-                console.log("Request failed");
-                alert("Invalid Credentials");
+              if (!hasPreviousEntry.current){
+                console.log("No previous entry found")
+                const res = await axios.post("http://10.50.27.202:5000/api/v1/loginMobile", {
+                  email:values.email,
+                  password:values.password
+                });
+                if (res.data.success) {
+                  await SecureStore.setItemAsync(
+                    'user_data',
+                    JSON.stringify({
+                      email: values.email,
+                      password: values.password,
+                      profilePicUrl: res.data.user.avatar,
+                      userId: res.data.user._id,
+                      keepLoggedIn: true,
+                      isLoggedIn: true
+                    })
+                  );
+
+                  res.data.user.token = res.data.token;
+                  dispatch({type:'SET_USER',payload:res.data.user});
+
+                  await initializeDatabase();
+
+                  downloadImage(res.data.user.avatar,"User",res.data.user._id);
+                  downloadImageList(res.data.user.pendingList,"pendingList").catch((error)=>{console.log(error)});
+                  downloadImageList(res.data.user.contactList,"contactList").catch((error)=>{console.log(error)});
+                  downloadImageList(res.data.user.deltaPending,"pendingList").catch((error)=>{console.log(error)});
+                  downloadImageList(res.data.user.deltaConnection,"contactList").catch((error)=>{console.log(error)});
+
+                  saveToDatabasePending(res.data.user.deltaPending).catch((error)=>{console.log(error)});
+                  saveToDatabaseContact(res.data.user.deltaConnection).catch((error)=>{console.log(error)});
+                  saveToDatabaseContact(res.data.user.contactList).catch((error)=>{console.log(error)});
+                  saveToDatabasePending(res.data.user.pendingList).catch((error)=>{console.log(error)});
+
+                  const pendingList = [...res.data.user.pendingList,...res.data.user.deltaPending].map(({ avatar, ...rest }) => rest);
+                  const contactList = [...res.data.user.contactList, ...res.data.user.deltaConnection].map(({ avatar, ...rest }) => rest);  
+
+                  res.data.user.pendingList = pendingList;
+                  res.data.user.contactList = contactList;
+
+                  const userBroadcastQR = res.data.qrBroadcast;
+                  const userPrivateQR = res.data.qrPrivate;
+
+                  console.log(res.data.user.deltaPending);
+
+                  saveQRCode(res.data.user._id + '_broadcast.png', userBroadcastQR);
+                  saveQRCode(res.data.user._id + '_private.png', userPrivateQR);
+
+                  dispatch({type:'SET_USER',payload:res.data.user});
+                  navigation.navigate("HomeScreen");
+                } 
+                else {
+                  console.log("Request failed");
+                  alert("Invalid Credentials");
+                }
+              }
+              else{
+                console.log("User setup already");
+                const res = await axios.post("http://10.50.27.202:5000/api/v1/loginMobileSignedUp", {
+                  email: values.email,
+                  password: values.password
+                });
+                if (res.data.success) {
+                  downloadImageList(res.data.user.deltaPending,'pendingList');
+                  downloadImageList(res.data.user.deltaConnection,'contactList');
+
+                  saveToDatabasePending(res.data.user.deltaPending);
+                  saveToDatabaseContact(res.data.user.deltaConnection);
+
+                  await deleteConnections(res.data.user.deletedConnections);
+
+                  const currentPendingList = await getPendingList();
+                  const currentContactList = await getContactList();
+
+                  res.data.user.pendingList = currentPendingList || [];
+                  res.data.user.contactList = currentContactList || [];
+
+                  res.data.user.token=res.data.token;
+                  console.log(res.data.user);
+                  dispatch({ type: 'SET_USER', payload: res.data.user });
+                  navigation.navigate('HomeScreen');
+                }
+                else{
+                  console.log("Request failed");
+                  console.log(error);
+                }
               }
             } catch (error) {
-              const errorMessage = error.response
-                ? error.response.data.message
-                : 'An error occurred';
+              console.log("Here we go!");
+              console.log(error);
+              const errorMessage = error.response?error.response.data.message:'An error occurred';
               alert(errorMessage);
             }
           }}

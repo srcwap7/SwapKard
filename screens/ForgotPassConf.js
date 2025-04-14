@@ -28,7 +28,7 @@ export default function ForgotPasswordConfirmation({route}) {
             }}
             onSubmit={async(values) => {
               try {
-                const res = await axios.post('http://10.50.53.155:5000/api/v1/resetPasswordMobile',
+                const res = await axios.post('http://10.50.27.202:5000/api/v1/resetPasswordMobile',
                   {
                     email: email,
                     password: values.password,

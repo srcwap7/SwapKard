@@ -4,6 +4,7 @@ const sendEmailVerificationOTP=async (req, user)=>{
     const otp=Math.floor(1000 + Math.random()*9000);
     await sendEmailVerificationModel.findOneAndDelete({userEmail:user});
     await new sendEmailVerificationModel({userEmail:user, otp:otp}).save();
+    console.log("user: ",user,"Otp: ",otp);
     const otpVerificationLink = `${process.env.FRONTEND_HOST}/account/verify-email`;
     let transporter = nodemailer.createTransport({
         host:process.env.EMAIL_HOST,

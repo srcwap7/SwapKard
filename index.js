@@ -2,7 +2,6 @@ import { registerRootComponent } from 'expo';
 import { Provider } from 'react-redux';
 import userReducer from './reduxStore/userReducer';
 import { configureStore } from '@reduxjs/toolkit';
-
 import App from './App';
 
 const store = configureStore({
@@ -13,7 +12,7 @@ const store = configureStore({
 
 const ReduxApp = () => (
     <Provider store={store}>
-      <App />
+      <App/>
     </Provider>
   );
 
