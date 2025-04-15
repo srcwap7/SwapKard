@@ -60,7 +60,7 @@ export default function HomeScreen() {
     if (!isConnected){
       const token = userObject.user.token;
       console.log("Token is",token);
-      const newSocket = io('http://10.50.27.202:5000',{
+      const newSocket = io('https://swapkard.onrender.com',{
         auth: {
           token:token
         }

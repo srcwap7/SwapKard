@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { useSelector } from 'react-redux'; 
+import { useSelector,useDispatch } from 'react-redux'; 
+import * as SecureStore from 'expo-secure-store';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 
 const EditProfileScreen = ({route}) => {
@@ -7,6 +8,7 @@ const EditProfileScreen = ({route}) => {
   const {socket} = route.params;
 
   const userObject = useSelector((state)=>state.user);
+  const dispatch = useDispatch();
 
   const originalName = userObject.user.name;
   const originalEmail = userObject.user.email;
@@ -16,7 +18,23 @@ const EditProfileScreen = ({route}) => {
   const [email, setEmail] = useState(originalEmail);
   const [phone, setPhone] = useState(originalPhone);
 
-  const handleSave = () => {
+  const updateSecureDataKey = async (keyToUpdate, newValue) => {
+    try {
+      const data = await SecureStore.getItemAsync('user_data');
+      if (data) {
+        const parsedData = JSON.parse(data);
+        parsedData[keyToUpdate] = newValue;
+        await SecureStore.setItemAsync('user_data', JSON.stringify(parsedData));
+        console.log(`Updated '${keyToUpdate}' to:`, newValue);
+      } else {
+        console.warn('No secure data found to update.');
+      }
+    } catch (error) {
+      console.error('Failed to update secure data key:', error);
+    }
+  };
+  
+  const handleSave = async() => {
     if (!activeField) return;
     let fieldChanged = '';
     let newData = '';
@@ -31,6 +49,10 @@ const EditProfileScreen = ({route}) => {
       newData = phone;
     }
     console.log(`Updating ${fieldChanged}: ${newData}`);
+    await updateSecureDataKey(fieldChanged,newData);
+    if (fieldChanged === "name") dispatch({type:'CHANGE_NAME',payload:{newName:name}});
+    else if (fieldChanged === "email") dispatch({type:'CHANGE_EMAIL',payload:{newEmail:email}});
+    else if (fieldChanged === "phone") dispatch({type:'CHANGE_PHONE',payload:{newPhone:phone}});
     socket.emit('changedDetails',{_id:userObject.user.id,fieldChanged:fieldChanged,newData:newData});
     setActiveField(null); 
   };

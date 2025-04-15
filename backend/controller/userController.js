@@ -7,7 +7,7 @@ const sendEmailVerificationOTP = require("../utils/sendVerificationOTP");
 const sendEmailVerificationModel = require("../models/emailVerification");
 const cloudinary = require("cloudinary").v2;
 const qrcode = require('qrcode');
-require("dotenv").config({path:"/home/coromandelexpress/SwapKard2.0/backend/config/config.env"});
+require("dotenv").config();
 
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -607,7 +607,7 @@ exports.forgotPass = async (req, res, next) => {
     const resetToken = user1.getresetpass();
     await user1.save({ validateBeforeSave: false });
   
-    const resetPassURL = `http://10.50.27.202:5000/api/v1/resetPass/${resetToken}`;
+    const resetPassURL = `https://swapkard.onrender.com/api/v1/resetPass/${resetToken}`;
   
     const message = `Your password reset token is: \n\n ${resetPassURL} \n\nIf you have not send this request, please ignore.`;
   

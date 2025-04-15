@@ -21,12 +21,12 @@ export default function Details({ route }) {
   const navigation = useNavigation();
   const dispatch = useDispatch();
   const [keepLoggedIn, setKeepLoggedIn] = useState(false);
+  const [phone,setPhone] = useState('');
   const [showCelebration, setShowCelebration] = useState(false);
   const userId = useRef('');
 
   const saveImage = async (fileName, base64Content) => {
     try {
-
       const userDirectory = `${FileSystem.documentDirectory}user/`;
       const filePath = `${userDirectory}${fileName}`;
       const dirInfo = await FileSystem.getInfoAsync(userDirectory);
@@ -56,6 +56,7 @@ export default function Details({ route }) {
           isLoggedIn: keepLoggedIn,
           token: tokenRef.current,
           hasSignedUp:true,
+          phone:phone
         })
       );
     } catch (error) {
@@ -96,9 +97,10 @@ export default function Details({ route }) {
           onSubmit={async (values) => {
             try {
               console.log(tokenRef.current);
+              setPhone(`${values.countryCode}${values.phoneNo}`);
               initializeDatabase();
               const res = await axios.post(
-                'http://10.50.27.202:5000/api/v1/details',
+                'https://swapkard.onrender.com/api/v1/details',
                 {
                   name: nameRef.current,
                   email: emailRef.current,

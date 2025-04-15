@@ -10,7 +10,7 @@ const jwt = require('jsonwebtoken');
 const User  = require('../backend/models/userModels');
 require("dotenv").config();
 
-app.set('trust proxy', true);
+app.set('trust proxy',true);
 
 
 app.use(cors({
@@ -63,6 +63,11 @@ io.on('connection', (socket) => {
             const { senderId, receiverId } = data;
             const receiverSocketId = connections[receiverId];
             console.log('Received request from:', senderId, 'to', receiverId);
+            User.findByIdAndUpdate(
+                senderId,
+                {$push:{invitationsSent: {id:receiverId}}},
+                {new:true}
+            ).catch((err)=>{console.log(err);});
             if (connections[receiverId]) {
                 const target = await User.findOne({ _id: senderId }).select('_id name email phone avatar job workAt age');
                 io.to(receiverSocketId).emit('requestReceived', { user: target });
@@ -208,6 +213,24 @@ io.on('connection', (socket) => {
                         console.log(res);
                     }
                 }
+                for (let i=0;i<result.invitationsSent.length;i+=1){
+                    const userId = result.invitationsSent[i].id;
+                    console.log(userId);
+                    const receiverSocketId = connections[userId];
+                    if (receiverSocketId) {
+                        console.log(receiverSocketId);
+                        io.to(receiverSocketId).emit("changeDetected",{_id:_id,fieldChanged:fieldChanged,newData:newData});
+                    }
+                    else{
+                        console.log(userId,"Offline");
+                        const res = await User.findByIdAndUpdate(
+                            userId,
+                            {$push:{eventQueue:{_id:_id,fieldChanged:fieldChanged,newData:newData}}},
+                            {new:true}
+                        );
+                        console.log(res);
+                    }
+                }
             }
         }
         catch(error){ console.log(error); }
@@ -226,6 +249,12 @@ io.on('connection', (socket) => {
                 },
                 { new: true }
             ).catch(err => console.log(`Error updating accepter ${accepterId}:`, err));
+            
+            User.findByIdAndUpdate(
+                senderId,
+                { $pull: { invitationsSent: { id:accepterId }}},
+                {new:true}
+            ).catch(err => console.log(err));
 
             if (receiverSocketId) {
                 console.log("Online");
@@ -263,6 +292,11 @@ io.on('connection', (socket) => {
                 { $pull: { pendingList: { id:senderId }}},
                 {new: true}
             ).catch(err => console.log(`Error rejecting request for accepter ${accepterId}:`, err));
+            User.findByIdAndUpdate(
+                senderId,
+                { $pull: { invitationsSent: { id:accepterId }}},
+                {new:true}
+            ).catch(err => console.log(err));
             console.log("Rejected Successfully!");
         } catch (error) {
             console.log(error);

@@ -99,7 +99,7 @@ export default function ProfilePic({route}) {
       }, 'profilePicture.jpg');
   
       const res = await axios.post(
-        'http://10.50.27.202:5000/api/v1/uploadProfilePic',
+        'https://swapkard.onrender.com/api/v1/uploadProfilePic',
         formData,
         {
           headers: {

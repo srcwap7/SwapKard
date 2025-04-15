@@ -177,7 +177,7 @@ export default function LoginScreen() {
 
           if (userData.isLoggedIn) {
             console.log(userData);
-            const res = await axios.post("http://10.50.27.202:5000/api/v1/loginMobileSignedUp ", {
+            const res = await axios.post("https://swapkard.onrender.com/api/v1/loginMobileSignedUp ", {
               email: email,
               password: password
             });
@@ -200,7 +200,7 @@ export default function LoginScreen() {
               res.data.user.contactList = currentContactList || [];
               res.data.user.token=res.data.token;
               console.log(res.data.user);
-              
+
               dispatch({ type: 'SET_USER', payload: res.data.user });
               handleLogin();
             }
@@ -235,7 +235,7 @@ export default function LoginScreen() {
             try {
               if (!hasPreviousEntry.current){
                 console.log("No previous entry found")
-                const res = await axios.post("http://10.50.27.202:5000/api/v1/loginMobile", {
+                const res = await axios.post("https://swapkard.onrender.com/api/v1/loginMobile", {
                   email:values.email,
                   password:values.password
                 });
@@ -257,7 +257,8 @@ export default function LoginScreen() {
 
                   await initializeDatabase();
 
-                  downloadImage(res.data.user.avatar,"User",res.data.user._id);
+                  await downloadImage(res.data.user.avatar,"User",res.data.user._id);
+                  
                   downloadImageList(res.data.user.pendingList,"pendingList").catch((error)=>{console.log(error)});
                   downloadImageList(res.data.user.contactList,"contactList").catch((error)=>{console.log(error)});
                   downloadImageList(res.data.user.deltaPending,"pendingList").catch((error)=>{console.log(error)});
@@ -292,7 +293,7 @@ export default function LoginScreen() {
               }
               else{
                 console.log("User setup already");
-                const res = await axios.post("http://10.50.27.202:5000/api/v1/loginMobileSignedUp", {
+                const res = await axios.post("https://swapkard.onrender.com/api/v1/loginMobileSignedUp", {
                   email: values.email,
                   password: values.password
                 });

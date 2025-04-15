@@ -68,6 +68,9 @@ const userSchema=mongoose.Schema({
           required: true,
         }
     }],
+    invitationsSent:[{
+        id:{type:mongoose.Schema.ObjectId}
+    }],
     resetPasswordToken:String,
     resetPasswordExpire: Date,
 })
