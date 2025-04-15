@@ -167,8 +167,6 @@ export default function LoginScreen() {
   useEffect(() => {
     const checkLoggedInUser = async () => {
       try {
-        const clearApp = async() => {await clearAppData();}
-        clearApp();
         const data = await SecureStore.getItemAsync('user_data');
         if (data) {
           console.log("Data found")
