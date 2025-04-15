@@ -1,7 +1,6 @@
 import * as SQLite from 'expo-sqlite';
 
 export async function initializeDatabase() {
-  //console.log("---------------Tryin to Initialize----------------------");
   try {
     const db = await SQLite.openDatabaseAsync('UserDB.db', {
       useNewConnection: true,
@@ -22,9 +21,6 @@ export async function initializeDatabase() {
         age INTEGER
       );
     `);
-
-    console.log("pendingList table created");
-
     await db.execAsync(`
       CREATE TABLE IF NOT EXISTS contactList (
         id TEXT PRIMARY KEY NOT NULL,
@@ -37,10 +33,6 @@ export async function initializeDatabase() {
         age INTEGER
       );
     `);
-
-    console.log("contactList table created");
-    console.log("--------------------Database created successfully--------------");
-
   } catch (error) {
     console.log("DB init error:", error);
   }
@@ -75,13 +67,11 @@ export async function getPendingList(){
 
 export async function insertContactUser(id,name,email,job,workAt,phone,cloudinary,age) {
   try{
-    console.log("This whole place is a giant mind fuck!");
     const db = await SQLite.openDatabaseAsync('UserDB.db',{
       useNewConnection:true,
     });
     await db.execAsync('PRAGMA journal_mode = WAL;');
     await db.runAsync('INSERT INTO contactList (id,name,email,job,workAt,phone,avatar,age) VALUES (?, ?, ?, ?, ?, ?, ?,?)',[id,name,email,job,workAt,phone,cloudinary,age]);
-    console.log('User added to contact list');
   }
   catch(error){console.log(error);}
 }
@@ -103,16 +93,6 @@ export async function getContactList() {
   const result = await db.getAllAsync('SELECT * FROM contactList');
   return result;
 }
-  
-export async function getUserById(id) {
-  const db = await SQLite.openDatabaseAsync('UserDB.db',{
-    useNewConnection:true,
-  });
-  await db.execAsync('PRAGMA journal_mode = WAL;');
-  const result = await db.getFirstAsync('SELECT * FROM pendingList WHERE id = ?', [id]);
-  console.log(result);
-  return result;
-}
 
 export async function deleteContactUser(id){
   const db = await SQLite.openDatabaseAsync('UserDB.db',{
@@ -120,7 +100,6 @@ export async function deleteContactUser(id){
   });
   await db.execAsync('PRAGMA journal_mode = WAL;');
   await db.runAsync('DELETE FROM contactList WHERE id = ?', [id]);
-  console.log('User deleted from contact list');
 }
 
 export async function replaceData(id,fieldChanged,newData){
@@ -130,5 +109,4 @@ export async function replaceData(id,fieldChanged,newData){
   await db.execAsync('PRAGMA journal_mode = WAL;');
   await db.runAsync(`UPDATE contactList SET ${fieldChanged} = ? WHERE id = ?`,[newData,id]);
   await db.runAsync(`UPDATE pendingList SET ${fieldChanged} = ? WHERE id = ?`,[newData,id]);
-  console.log("userUpdated");
 }
