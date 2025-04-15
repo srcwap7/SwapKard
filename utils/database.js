@@ -101,7 +101,6 @@ export async function getContactList() {
   });
   await db.execAsync('PRAGMA journal_mode = WAL;');
   const result = await db.getAllAsync('SELECT * FROM contactList');
-  console.log(result);
   return result;
 }
   
@@ -122,4 +121,14 @@ export async function deleteContactUser(id){
   await db.execAsync('PRAGMA journal_mode = WAL;');
   await db.runAsync('DELETE FROM contactList WHERE id = ?', [id]);
   console.log('User deleted from contact list');
+}
+
+export async function replaceData(id,fieldChanged,newData){
+  const db = await SQLite.openDatabaseAsync('UserDB.db',{
+    useNewConnection:true,
+  });
+  await db.execAsync('PRAGMA journal_mode = WAL;');
+  await db.runAsync(`UPDATE contactList SET ${fieldChanged} = ? WHERE id = ?`,[newData,id]);
+  await db.runAsync(`UPDATE pendingList SET ${fieldChanged} = ? WHERE id = ?`,[newData,id]);
+  console.log("userUpdated");
 }

@@ -156,17 +156,18 @@ io.on('connection', (socket) => {
                 await User.findByIdAndUpdate(
                     senderId,{
                         $push: {
-                            pendingList: { $each: deltaPending },
-                            contactList: { $each: deltaConnection },
+                            pendingList:{$each:deltaPending},
+                            contactList:{$each:deltaConnection},
                         },
                         $set: {
-                            dirty: 0,
-                            deltaPending: [],
-                            deltaConnection: [],
-                            deletedConnections: [],
+                            dirty:0,
+                            deltaPending:[],
+                            deltaConnection:[],
+                            deletedConnections:[],
+                            eventQueue:[],
                         },
                     },
-                    { new: true }
+                    {new:true}
                 );
             }
             console.log("Received Request for updates fetching and acted accordingly");
@@ -174,6 +175,43 @@ io.on('connection', (socket) => {
             console.error('Error in fetchUpdates:', error);
         }
     });
+
+    socket.on('changedDetails',async (data) =>{
+        try{
+            console.log("Requesex Received         ");
+            const {_id,fieldChanged,newData} = data;
+            console.log(_id,fieldChanged,newData);
+            User.findByIdAndUpdate(
+                _id,
+                {$set: { [fieldChanged]: newData }},
+                {new:true}
+            ).catch((error)=>{console.log(error)});
+
+            const result = await User.findById(_id);
+            if (result){
+                //FOR EVERYONE IN THE CONTACT LIST SEND THE UPDATE INFO
+                for (let i=0;i<result.contactList.length;i+=1){
+                    const userId = result.contactList[i].id;
+                    console.log(userId);
+                    const receiverSocketId = connections[userId];
+                    if (receiverSocketId) {
+                        console.log(receiverSocketId);
+                        io.to(receiverSocketId).emit("changeDetected",{_id:_id,fieldChanged:fieldChanged,newData:newData});
+                    }
+                    else{
+                        console.log(userId,"Offline");
+                        const res = await User.findByIdAndUpdate(
+                            userId,
+                            {$push:{eventQueue:{_id:_id,fieldChanged:fieldChanged,newData:newData}}},
+                            {new:true}
+                        );
+                        console.log(res);
+                    }
+                }
+            }
+        }
+        catch(error){ console.log(error); }
+    })
 
     socket.on('acceptRequest', async (data) => {
         try {

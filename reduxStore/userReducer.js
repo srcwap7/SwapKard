@@ -78,78 +78,113 @@ const initialState = {
   
       case 'MODIFY_USER_PHONE_NO': {
         const { id, phone } = action.payload;
+        const contactIndex = state.user.contactList.findIndex(
+          contact => contact._id === id
+        );
+      
+        if (contactIndex !== -1) {
+          return {
+            ...state,
+            user: {
+              ...state.user,
+              contactList: [
+                ...state.user.contactList.slice(0, contactIndex),
+                { ...state.user.contactList[contactIndex], phone },
+                ...state.user.contactList.slice(contactIndex + 1),
+              ],
+            },
+          };
+        }
+        const pendingIndex = state.user.pendingList.findIndex(contact => contact._id === id);
+        if (pendingIndex !== -1) {
+          return {
+            ...state,
+            user: {
+              ...state.user,
+              pendingList: [
+                ...state.user.pendingList.slice(0, pendingIndex),
+                { ...state.user.pendingList[pendingIndex], phone },
+                ...state.user.pendingList.slice(pendingIndex + 1),
+              ],
+            },
+          };
+        }
+        return state;
+      }
+
+      case 'MODIFY_USER_EMAIL' : {
+        const { id, email} = action.payload;
         const userIndex = state.user.contactList.findIndex(
-          contact => contact.id === id
+          contact => contact._id === id
         );
-        if (userIndex === -1) return state;
-        return {
-          ...state,
-          user: {
-            ...state.user,
-            contactList: [
-              ...state.user.contactList.slice(0, userIndex),
-              { ...state.user.contactList[userIndex], phone },
-              ...state.user.contactList.slice(userIndex + 1),
-            ],
-          },
-        };
+        if (userIndex === -1){
+          const userPIndex = state.user.pendingList.findIndex(
+            contact => contact._id === id
+          );
+          if (userPIndex === -1) return state;
+          else
+            return {
+              ...state,
+              user: {
+                ...state.user,
+                pendingList: [
+                  ...state.user.pendingList.slice(0, userPIndex),
+                  { ...state.user.pendingList[userPIndex], email},
+                  ...state.user.pendingList.slice(userPIndex + 1),
+                ],
+              },
+            }
+        }
+        else
+          return {
+            ...state,
+            user: {
+              ...state.user,
+              contactList: [
+                ...state.user.contactList.slice(0, userIndex),
+                { ...state.user.contactList[userIndex], email},
+                ...state.user.contactList.slice(userIndex + 1),
+              ],
+            },
+          };
       }
   
-      case 'MODIFY_USER_NAME': {
-        const { id, name } = action.payload;
+      case 'MODIFY_USER_NAME' : {
+        const {id,name} = action.payload;
         const userIndex = state.user.contactList.findIndex(
-          contact => contact.id === id
+          contact => contact._id === id
         );
-        if (userIndex === -1) return state;
-        return {
-          ...state,
-          user: {
-            ...state.user,
-            contactList: [
-              ...state.user.contactList.slice(0, userIndex),
-              { ...state.user.contactList[userIndex], name },
-              ...state.user.contactList.slice(userIndex + 1),
-            ],
-          },
-        };
-      }
-  
-      case 'MODIFY_PENDING_USER_PHONE_NO': {
-        const { id, phone } = action.payload;
-        const userIndex = state.user.pendingList.findIndex(
-          pending => pending.id === id
-        );
-        if (userIndex === -1) return state;
-        return {
-          ...state,
-          user: {
-            ...state.user,
-            pendingList: [
-              ...state.user.pendingList.slice(0, userIndex),
-              { ...state.user.pendingList[userIndex], phone },
-              ...state.user.pendingList.slice(userIndex + 1),
-            ],
-          },
-        };
-      }
-  
-      case 'MODIFY_PENDING_USER_NAME': {
-        const { id, name } = action.payload;
-        const userIndex = state.user.pendingList.findIndex(
-          pending => pending.id === id
-        );
-        if (userIndex === -1) return state;
-        return {
-          ...state,
-          user: {
-            ...state.user,
-            pendingList: [
-              ...state.user.pendingList.slice(0, userIndex),
-              { ...state.user.pendingList[userIndex], name },
-              ...state.user.pendingList.slice(userIndex + 1),
-            ],
-          },
-        };
+        console.log(userIndex,state.user.contactList[userIndex]);
+        if (userIndex === -1){
+          const userPIndex = state.user.pendingList.findIndex(
+            contact => contact._id === id
+          );
+          if (userPIndex === -1) return state;
+          else
+            return {
+              ...state,
+              user: {
+                ...state.user,
+                pendingList: [
+                  ...state.user.pendingList.slice(0, userPIndex),
+                  { ...state.user.pendingList[userPIndex],name},
+                  ...state.user.pendingList.slice(userPIndex + 1),
+                ],
+              },
+            }
+        }
+        else
+          return {
+            ...state,
+            user: {
+              ...state.user,
+              contactList: [
+                ...state.user.contactList.slice(0, userIndex),
+                { ...state.user.contactList[userIndex],name},
+                ...state.user.contactList.slice(userIndex + 1),
+              ],
+            },
+          };
       }
   
       case 'LOGOUT':

@@ -1,15 +1,16 @@
 import React, { useState, useRef, useEffect} from 'react';
-import {View,Text,TouchableOpacity,StyleSheet,Animated,Easing,TouchableWithoutFeedback,Button} from 'react-native';
+import {View,Text,TouchableOpacity,StyleSheet,Animated,Easing,TouchableWithoutFeedback,Button,Image} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import QRCodeComp from '../components/QRcodeUrl';
 import io from 'socket.io-client';
 import QRScanner from '../components/Scanner';
 import { useSelector, useDispatch } from 'react-redux';
-import { getContactList, getPendingList, insertPendingUser, insertContactUser,deleteContactUser } from '../utils/database';
+import { getContactList, getPendingList, insertPendingUser, insertContactUser,deleteContactUser, replaceData} from '../utils/database';
 import { EventEmitter } from 'expo';
 import * as FileSystem from 'expo-file-system';
 import { useNavigation } from '@react-navigation/native';
 import { deleteContactFile } from '../utils/fileManipulation';
+
 
 export default function HomeScreen() {
   const isBroadcast = useRef("broadcast");
@@ -21,6 +22,7 @@ export default function HomeScreen() {
   const [isConnected, setIsConnected] = useState(false);
   const menuSlideAnim = useRef(new Animated.Value(-300)).current;
   const userObject = useSelector((state) => state.user);
+  const [profilePicUri, setProfilePicUri] = useState(null);
   const [socket,setSocket] = useState(null);
   const eventEmitter = new EventEmitter();
   const navigation = useNavigation();
@@ -130,10 +132,35 @@ export default function HomeScreen() {
         }
       })
 
+      newSocket.on('changeDetected',async(data)=>{
+        const {_id,fieldChanged,newData} = data;
+        console.log(_id,fieldChanged,newData);
+        replaceData(_id,fieldChanged,newData).catch((error)=>{console.log(error)});
+        if (fieldChanged.trim() === "name") dispatch({type:'MODIFY_USER_NAME',payload:{id:_id,name:newData}});
+        else if (fieldChanged.trim() === "email") dispatch({type:'MODIFY_USER_EMAIL',payload:{id:_id,email:newData}});
+        else if (fieldChanged.trim() === "phone") dispatch({type:'MODIFY_USER_PHONE_NO',payload:{id:_id,phone:newData}});
+      })
+
       newSocket.on('disconnect', () => {
         console.log('Disconnected from the socket io server');
       });
 
+      const loadProfilePic = async () => {
+        try {
+          console.log(userObject.user.id);
+          const path = FileSystem.documentDirectory + `userUser/profilePics/${userObject.user.id}_profile_pic.jpg`;
+          const fileInfo = await FileSystem.getInfoAsync(path);
+          if (fileInfo.exists) {
+            setProfilePicUri(fileInfo.uri);
+            console.log(path,"Done");
+          }
+          else console.log('Profile picture not found at:', path);
+        } 
+        catch (error) {console.error('Error loading profile pic:', error);}
+      };
+      
+      const loadPic = async () => { await loadProfilePic(); }
+      loadPic();
     }
   },[]);
   
@@ -187,6 +214,16 @@ export default function HomeScreen() {
             <Ionicons name="menu" size={28} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}></Text>
+
+          <TouchableOpacity  
+            onPress={()=>{navigation.navigate("EditPage",{socket:socket})}}
+            style={styles.profilePic}
+          >
+            <Image
+              source={{ uri: profilePicUri }}
+            />
+          </TouchableOpacity>
+
         </View>
         <Animated.View style={[styles.menuContainer, { 
           left: menuSlideAnim,
@@ -236,21 +273,6 @@ export default function HomeScreen() {
             </View>
           )}
         </View>
-
-        <Button
-        title="debugger"
-        onPress={
-          async()=>{
-            console.log("Pending List as on redux is",userObject.user.pendingList);
-            const x = await getPendingList();
-            console.log("Pending List as on disk is ",x);
-            console.log("Contact List as on redux is",userObject.user.contactList);
-            const y = await getContactList();
-            console.log("Contact List as on disk is ",y);
-          }
-        }>
-          debugger
-        </Button>
       </View>
     </TouchableWithoutFeedback>
   );
@@ -333,4 +355,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 10,
   },
+  profilePic: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginLeft: 'auto',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },  
 });

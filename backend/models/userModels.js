@@ -16,7 +16,7 @@ const userSchema=mongoose.Schema({
     password:{
         type:String,
         required:true,
-        minLength:[8, "Enter at least 8 characters"]
+        minLength:[8, "Enter at least 6 characters"]
     },
     job:{
         type:String,
@@ -40,26 +40,32 @@ const userSchema=mongoose.Schema({
         default:false
     },
     deltaConnection:[{
-        id:{
-            type:mongoose.Schema.ObjectId,
-        }
+        id:{type:mongoose.Schema.ObjectId}
     }],
     deltaPending:[{
-        id:{
-            type:mongoose.Schema.ObjectId,
-        }
+        id:{type:mongoose.Schema.ObjectId}
     }],
     deletedConnections:[{
-        id:{
-            type:mongoose.Schema.ObjectId,
-        }
+        id:{type:mongoose.Schema.ObjectId}
     }],
     broadcastQRsalt:{
         type:String
     },
     pendingList:[{
-        id:{
-            type:mongoose.Schema.ObjectId,
+        id:{type:mongoose.Schema.ObjectId}
+    }],
+    eventQueue:[{
+        _id: {
+          type: mongoose.Schema.Types.ObjectId,
+          auto: true,
+        },
+        fieldChanged: {
+          type: String,
+          required: true,
+        },
+        newData: {
+          type: mongoose.Schema.Types.Mixed, // allows strings, numbers, objects, etc.
+          required: true,
         }
     }],
     resetPasswordToken:String,

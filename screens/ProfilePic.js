@@ -122,7 +122,6 @@ export default function ProfilePic({route}) {
       if (res.data.success) {
         setUploadProgress(100);
         await new Promise(resolve => setTimeout(resolve, 500));
-        
         navigation.navigate('Details', {
           cloudinary: res.data.fileUrl,
           email: email,
@@ -193,9 +192,10 @@ export default function ProfilePic({route}) {
             })}
             disabled={isUploading}
           >
-            <Text style={[styles.skipText, isUploading && styles.textDisabled]}>
-              Skip
-            </Text>
+          
+          <Text style={[styles.skipText, isUploading && styles.textDisabled]}>
+            Skip
+          </Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

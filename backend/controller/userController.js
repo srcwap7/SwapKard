@@ -261,7 +261,7 @@ exports.resetPasswordMobile = async(req,res,next) => {
     }
 }
 
-exports.registerUser = async (req, res, next) => {
+exports.registerUser = async (req,res,next) => {
     try {
         const {name,email,password,job,workAt,age,phone} = req.body;
         console.log(req.files);
@@ -479,27 +479,21 @@ exports.loginUserMobile = async (req, res, next) => {
         console.log(userR);
 
         const qrCodedataB = JSON.stringify({
-            id: user1._id,
-            type: 0,
+            id:user1._id,
+            type:0,
             timestamp: Date.now(),
-            randomHash: user1.broadcastQRsalt
+            randomHash:user1.broadcastQRsalt
         });
 
 
         const qrCodedataA = JSON.stringify({
             id: user1._id,
             type: 1,
-            timestamp: Date.now(),
+            timestamp:Date.now(),
         });
 
         const qrCodeA = await qrcode.toDataURL(qrCodedataA);
         const qrCodeB = await qrcode.toDataURL(qrCodedataB);
-
-
-        // Manually construct the arrays for each list
-        //const contactList = userR.contactList.map(contact=>(populateUser(contact)));
-        
-        //console.log(contactList);
 
         return res.status(200).json({
             success:true,

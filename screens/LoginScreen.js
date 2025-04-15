@@ -8,7 +8,7 @@ import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system';
 import * as SQLite from 'expo-sqlite';
-import {initializeDatabase,getPendingList,insertPendingUser,getContactList,insertContactUser,deleteContactUser} from '../utils/database';
+import {initializeDatabase,getPendingList,insertPendingUser,getContactList,insertContactUser,deleteContactUser,replaceData} from '../utils/database';
 import { deleteContactFile } from '../utils/fileManipulation';
 
 export default function LoginScreen() {
@@ -102,6 +102,19 @@ export default function LoginScreen() {
     }
   };
 
+  const updateDetails = async(array) => {
+    if (array){
+      try{
+        for (let i =0;i<array.length;i++){
+          const {_id,fieldChanged,newData} = array[i];
+          console.log(_id,fieldChanged,newData);
+          await updateDetails(_id,fieldChanged,newData).catch((error)=>{console.log(error)});
+        }
+      }
+      catch(error){console.log(error);}
+    }
+  }
+
   const saveToDatabasePending = async(dataArray)=>{
     if (dataArray){
       try {
@@ -121,6 +134,15 @@ export default function LoginScreen() {
       }
     }
   };
+
+  const handleLogin = async () => {
+    console.log("Logged In");
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'HomeScreen' }],
+    });
+  };
+  
 
   const saveToDatabaseContact = async(dataArray)=>{
     if (dataArray){
@@ -145,6 +167,8 @@ export default function LoginScreen() {
   useEffect(() => {
     const checkLoggedInUser = async () => {
       try {
+        const clearApp = async() => {await clearAppData();}
+        clearApp();
         const data = await SecureStore.getItemAsync('user_data');
         if (data) {
           console.log("Data found")
@@ -162,6 +186,7 @@ export default function LoginScreen() {
               console.log(res.data.user);
               downloadImageList(res.data.user.deltaPending,'pendingList');
               downloadImageList(res.data.user.deltaConnection,'contactList');
+              updateDetails(res.data.user.eventQueue);
 
               saveToDatabasePending(res.data.user.deltaPending);
               saveToDatabaseContact(res.data.user.deltaConnection);
@@ -173,12 +198,11 @@ export default function LoginScreen() {
 
               res.data.user.pendingList = currentPendingList || [];
               res.data.user.contactList = currentContactList || [];
-              
               res.data.user.token=res.data.token;
               console.log(res.data.user);
+              
               dispatch({ type: 'SET_USER', payload: res.data.user });
-              navigation.navigate('HomeScreen');
-
+              handleLogin();
             }
           } else {
             console.log("User not logged in");
@@ -280,6 +304,7 @@ export default function LoginScreen() {
                   saveToDatabaseContact(res.data.user.deltaConnection);
 
                   await deleteConnections(res.data.user.deletedConnections);
+                  await updateDetails(res.data.user.eventQueue);
 
                   const currentPendingList = await getPendingList();
                   const currentContactList = await getContactList();
