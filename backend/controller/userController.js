@@ -7,7 +7,7 @@ const sendEmailVerificationOTP = require("../utils/sendVerificationOTP");
 const sendEmailVerificationModel = require("../models/emailVerification");
 const cloudinary = require("cloudinary").v2;
 const qrcode = require('qrcode');
-require("dotenv").config();
+require("dotenv").config({path:"/home/coromandelexpress/SwapKard2.0/backend/config/config.env"});
 
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
