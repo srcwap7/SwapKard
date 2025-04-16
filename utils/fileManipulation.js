@@ -36,6 +36,23 @@ export async function deleteFile(_id) {
   }
 }
 
+export async function checkIfFileExists(id) {
+  const imageUri = `${FileSystem.documentDirectory}usercontactList/profilePics/${id}_profile_pic.jpg`;
+  try {
+    const fileInfo = await FileSystem.getInfoAsync(imageUri);
+    if (fileInfo.exists) {
+      console.log('✅ File exists at:', imageUri);
+      return true;
+    } else {
+      console.log('❌ File does not exist at:', imageUri);
+      return false;
+    }
+  } catch (error) {
+    console.error('⚠️ Error checking file existence:', error);
+    return false;
+  }
+}
+
 export async function deleteContactFile(_id) {
   const filePath = FileSystem.documentDirectory + `usercontactList/profilePics/${_id}_profile_pic.jpg`;
   try {

@@ -5,11 +5,11 @@ import QRCodeComp from '../components/QRcodeUrl';
 import io from 'socket.io-client';
 import QRScanner from '../components/Scanner';
 import { useSelector, useDispatch } from 'react-redux';
-import { getContactList, getPendingList, insertPendingUser, insertContactUser,deleteContactUser, replaceData} from '../utils/database';
+import { getContactList, getPendingList, insertPendingUser, insertContactUser,deleteContactUser, replaceData,deleteAllContacts} from '../utils/database';
 import { EventEmitter } from 'expo';
 import * as FileSystem from 'expo-file-system';
 import { useNavigation } from '@react-navigation/native';
-import { deleteContactFile } from '../utils/fileManipulation';
+import { deleteContactFile,checkIfFileExists } from '../utils/fileManipulation';
 
 
 export default function HomeScreen() {
@@ -26,7 +26,6 @@ export default function HomeScreen() {
   const [socket,setSocket] = useState(null);
   const eventEmitter = new EventEmitter();
   const navigation = useNavigation();
-
   const dispatch = useDispatch();
 
   async function saveImageToFileSystem(imageUri, filePath) {
@@ -57,6 +56,7 @@ export default function HomeScreen() {
   }
 
   useEffect(() => {
+    console.log(userObject)
     if (!isConnected){
       const token = userObject.user.token;
       console.log("Token is",token);
@@ -87,7 +87,7 @@ export default function HomeScreen() {
             requestUser.job,       
             requestUser.workAt,
             requestUser.phone,
-            requestUser.avatar 
+            requestUser.age 
           );
           dispatch({type:'RECEIVED_REQUEST',payload:requestUser});
         }
@@ -109,7 +109,6 @@ export default function HomeScreen() {
             requestUser.job,
             requestUser.workAt,
             requestUser.phone,
-            requestUser.avatar,
             requestUser.age
           );
           dispatch({type:'ACCEPTED_REQUEST',payload:requestUser});
@@ -204,6 +203,18 @@ export default function HomeScreen() {
     toggleMenu();
   };
 
+  const debuggerFunction = async() => {
+    console.log("UserObject is  ",userObject.user);
+    console.log("Contact List as on redux is ",userObject.user.contactList);
+    const result = await getContactList();
+    checkIfFileExists(result[0].id);
+    console.log("Contact List as on disk is ",result);
+  }
+
+  const clearAll = async () => {
+    await deleteAllContacts();
+  }
+
   return (
     <TouchableWithoutFeedback onPress={() => {
       if (menuVisible) toggleMenu();
@@ -216,11 +227,12 @@ export default function HomeScreen() {
           <Text style={styles.headerTitle}></Text>
 
           <TouchableOpacity  
-            onPress={()=>{navigation.navigate("EditPage",{socket:socket})}}
+            onPress={() => { navigation.navigate("EditPage", { socket }) }}
             style={styles.profilePic}
           >
             <Image
               source={{ uri: profilePicUri }}
+              style={styles.profilePic}
             />
           </TouchableOpacity>
 
@@ -273,6 +285,14 @@ export default function HomeScreen() {
             </View>
           )}
         </View>
+
+        <Button title="Debugger" onPress={debuggerFunction}>
+           <Text>Debugger</Text>
+        </Button>
+
+        <Button title="Clear" onPress={clearAll}>
+           <Text>Clear</Text>
+        </Button>
       </View>
     </TouchableWithoutFeedback>
   );
@@ -364,3 +384,7 @@ const styles = StyleSheet.create({
     borderColor: '#fff',
   },  
 });
+
+// file:///data/user/0/host.exp.exponent/files/userUser/profilePics/67fb565e3ff0344c7d39c5a2_profile_pic.jpg
+// file:///data/user/0/host.exp.exponent/files/usercontactList/profilePics/67fb58b0b64b51007adc2196_profile_pic.jpg
+// file:///data/user/0/host.exp.exponent/files/usercontactList/profilePics/67fb58b0b64b51007adc2196_profile_pic.jpg

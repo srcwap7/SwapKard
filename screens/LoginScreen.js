@@ -60,6 +60,29 @@ export default function LoginScreen() {
     }
   };
 
+  const saveSecureData = async (data,password) => {
+    try {
+      await SecureStore.setItemAsync(
+        'user_data',
+        JSON.stringify({
+          email: data.email,
+          password: password,
+          name: data.name,
+          userId: data._id,
+          profilePicUrl: data.avatar,
+          isLoggedIn: true,
+          token: data.token,
+          hasSignedUp:true,
+          phone:data.phone
+        })
+      );
+    } catch (error) {
+      alert('Failed to save user credentials');
+      console.error('Failed to save data securely:', error);
+    }
+  };
+
+
   const saveQRCode = async (fileName, base64Content) => {
     try {
       const userDirectory = `${FileSystem.documentDirectory}user/`;
@@ -119,8 +142,8 @@ export default function LoginScreen() {
     if (dataArray){
       try {
         for (let i=0;i<dataArray.length;i++){
-          const { _id,name,email,job,workAt,phone,avatar,age} = dataArray[i];
-          await insertPendingUser(_id,name,email,job,workAt,phone,avatar,age).then(
+          const { _id,name,email,job,workAt,phone,age} = dataArray[i];
+          await insertPendingUser(_id,name,email,job,workAt,phone,age).then(
             ()=>console.log('success')
           ).catch(
             (error)=>{
@@ -148,8 +171,8 @@ export default function LoginScreen() {
     if (dataArray){
       try {
         for (let i=0;i<dataArray.length;i++){
-          const { _id,name,email,phone,job,workAt,avatar,age} = dataArray[i];
-          await insertContactUser(_id,name,email,job,workAt,phone,avatar,age).then(
+          const { _id,name,email,phone,job,workAt,age} = dataArray[i];
+          await insertContactUser(_id,name,email,job,workAt,phone,age).then(
             ()=>console.log('success')
           ).catch(
             (error)=>{
@@ -167,6 +190,9 @@ export default function LoginScreen() {
   useEffect(() => {
     const checkLoggedInUser = async () => {
       try {
+        const clearApp = async() => {await clearAppData();}
+        //clearApp();
+        console.log("Hello")
         const data = await SecureStore.getItemAsync('user_data');
         if (data) {
           console.log("Data found")
@@ -181,7 +207,7 @@ export default function LoginScreen() {
             });
 
             if (res.data.success) {
-              console.log(res.data.user);
+              console.log("************************************",res.data.user);
               downloadImageList(res.data.user.deltaPending,'pendingList');
               downloadImageList(res.data.user.deltaConnection,'contactList');
               updateDetails(res.data.user.eventQueue);
@@ -196,8 +222,13 @@ export default function LoginScreen() {
 
               res.data.user.pendingList = currentPendingList || [];
               res.data.user.contactList = currentContactList || [];
-              res.data.user.token=res.data.token;
-              console.log(res.data.user);
+              res.data.user.token = res.data.token;
+              res.data.user.name = userData.name;
+              res.data.user.email = userData.email;
+              res.data.user.phone = userData.phone;
+              
+              console.log("**********************",res.data.user.pendingList);
+              console.log("**********************",res.data.user.contactList);
 
               dispatch({ type: 'SET_USER', payload: res.data.user });
               handleLogin();
@@ -238,30 +269,18 @@ export default function LoginScreen() {
                   password:values.password
                 });
                 if (res.data.success) {
-                  await SecureStore.setItemAsync(
-                    'user_data',
-                    JSON.stringify({
-                      email: values.email,
-                      password: values.password,
-                      profilePicUrl: res.data.user.avatar,
-                      userId: res.data.user._id,
-                      keepLoggedIn: true,
-                      isLoggedIn: true
-                    })
-                  );
 
                   res.data.user.token = res.data.token;
                   dispatch({type:'SET_USER',payload:res.data.user});
 
                   await initializeDatabase();
-
                   await downloadImage(res.data.user.avatar,"User",res.data.user._id);
                   
                   downloadImageList(res.data.user.pendingList,"pendingList").catch((error)=>{console.log(error)});
                   downloadImageList(res.data.user.contactList,"contactList").catch((error)=>{console.log(error)});
                   downloadImageList(res.data.user.deltaPending,"pendingList").catch((error)=>{console.log(error)});
                   downloadImageList(res.data.user.deltaConnection,"contactList").catch((error)=>{console.log(error)});
-
+                  saveSecureData(res.data.user,values.password);
                   saveToDatabasePending(res.data.user.deltaPending).catch((error)=>{console.log(error)});
                   saveToDatabaseContact(res.data.user.deltaConnection).catch((error)=>{console.log(error)});
                   saveToDatabaseContact(res.data.user.contactList).catch((error)=>{console.log(error)});
@@ -307,6 +326,7 @@ export default function LoginScreen() {
 
                   const currentPendingList = await getPendingList();
                   const currentContactList = await getContactList();
+
 
                   res.data.user.pendingList = currentPendingList || [];
                   res.data.user.contactList = currentContactList || [];
