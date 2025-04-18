@@ -409,18 +409,14 @@ exports.loginUserMobileSignedUp = async(req,res,next)=>{
                 message: "Invalid email or password"
             });
         }
-
         const token = JWT.sign({ id: user1._id, email: user1.email }, process.env.JWT_SECRET, { expiresIn: '120h' });
 
-        const userR = await user.findById(user1._id).select("_id name email deltaPending deltaConnection deletedConnections eventQueue");
+        let userR = await user.findById(user1._id).select("_id name email deltaPending deltaConnection deletedConnections eventQueue").lean(); 
+        const fields          = '_id name email job workAt avatar phone age';   
 
-        const fields          = '_id name email job workAt avatar phone age';                             
         userR.deltaPending    = await manuallyPopulateList(userR.deltaPending || [], fields);
         userR.deltaConnection = await manuallyPopulateList(userR.deltaConnection || [],fields);
-
-        console.log("**********",userR,"**************");
-
-
+        
         return res.status(200).json({
             success: true,
             user:userR,
