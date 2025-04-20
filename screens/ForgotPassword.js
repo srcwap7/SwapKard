@@ -28,7 +28,7 @@ export default function ForgotPassword() {
     try {
       console.log(values);
       setEmail(values.email);
-      const res = await axios.post("http://10.50.27.202:5000/api/v1/forgotPasswordMobile", {email:values.email});
+      const res = await axios.post("https://swapkard.onrender.com/api/v1/forgotPasswordMobile", {email:values.email});
       if (res.status === 200) {
         setMailSent(true);
         setRunning(true);

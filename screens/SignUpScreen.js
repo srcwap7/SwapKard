@@ -43,7 +43,7 @@ export default function SignUpScreen() {
               password.current = values.password;
               name.current = values.name;
 
-              axios.post("http://10.50.27.202:5000/api/v1/sendOtp", { email: values.email })
+              axios.post("https://swapkard.onrender.com/api/v1/sendOtp", { email: values.email })
                 .then((res) => {
                   if (res.data.success) {
                     setMailSent(true);

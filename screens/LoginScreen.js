@@ -171,7 +171,7 @@ export default function LoginScreen() {
 
           if (userData.isLoggedIn) {
             console.log(userData);
-            const res = await axios.post("http://10.50.27.202:5000/api/v1/loginMobileSignedUp ", {
+            const res = await axios.post("https://swapkard.onrender.com/api/v1/loginMobileSignedUp ", {
               email: email,
               password: password
             });
@@ -225,7 +225,7 @@ export default function LoginScreen() {
             try {
               if (!hasPreviousEntry.current){
                 console.log("No previous entry found")
-                const res = await axios.post("http://10.50.27.202:5000/api/v1/loginMobile", {
+                const res = await axios.post("https://swapkard.onrender.com/api/v1/loginMobile", {
                   email:values.email,
                   password:values.password
                 });
@@ -262,7 +262,7 @@ export default function LoginScreen() {
               }
               else{
                 console.log("User setup already");
-                const res = await axios.post("http://10.50.27.202:5000/api/v1/loginMobileSignedUp", {
+                const res = await axios.post("https://swapkard.onrender.com/api/v1/loginMobileSignedUp", {
                   email: values.email,
                   password: values.password
                 });

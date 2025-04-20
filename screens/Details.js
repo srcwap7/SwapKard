@@ -100,7 +100,7 @@ export default function Details({ route }) {
               setPhone(`${values.countryCode}${values.phoneNo}`);
               initializeDatabase();
               const res = await axios.post(
-                'http://10.50.27.202:5000/api/v1/details',
+                'https://swapkard.onrender.com/api/v1/details',
                 {
                   name: nameRef.current,
                   email: emailRef.current,
