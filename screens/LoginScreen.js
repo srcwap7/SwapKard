@@ -5,9 +5,7 @@ import { Formik } from 'formik';
 import { useNavigation } from '@react-navigation/native';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system';
-import * as SQLite from 'expo-sqlite';
 import {initializeDatabase,getPendingList,insertPendingUser,getContactList,insertContactUser,deleteContactUser,replaceData} from '../utils/database';
 import { deleteContactFile } from '../utils/fileManipulation';
 
@@ -15,31 +13,6 @@ export default function LoginScreen() {
   const navigation = useNavigation();
   const dispatch = useDispatch();
   const hasPreviousEntry = useRef(false);
-
-  const clearAppData = async () => {
-    try {
-      await AsyncStorage.clear();
-      console.log('AsyncStorage cleared');
-      const dbName = 'UserDB.db';
-      const db = await SQLite.openDatabaseAsync(dbName);
-      await db.execAsync('DROP TABLE IF EXISTS pendingList');
-      await db.execAsync('DROP TABLE IF EXISTS contactList');
-      console.log('SQLite database cleared');
-      const directory = FileSystem.documentDirectory;
-      const files = await FileSystem.readDirectoryAsync(directory);
-      await Promise.all(
-        files.map(file =>
-          FileSystem.deleteAsync(`${directory}${file}`, { idempotent: true })
-        )
-      );
-      console.log('File system cleared');
-      const profilePicsDir = `${FileSystem.documentDirectory}user/profilePics/pendingList/`;
-      await FileSystem.deleteAsync(profilePicsDir, { idempotent: true });
-      console.log('Profile pics directory cleared');
-    } catch (error) {
-      console.error('Error clearing app data:', error);
-    }
-  };
 
   const downloadImage = async (imageUrl,directory,id) => {
     try {
@@ -94,9 +67,9 @@ export default function LoginScreen() {
       console.log('File saved to:', filePath);
       return filePath;
 
-    } catch (error) {
-        console.error('Error saving file:', error);
-        alert('Disk full or other error occurred while saving file.');
+    }catch (error) {
+      console.error('Error saving file:', error);
+      alert('Disk full or other error occurred while saving file.');
     }
   };
 
@@ -130,8 +103,7 @@ export default function LoginScreen() {
       try{
         for (let i =0;i<array.length;i++){
           const {_id,fieldChanged,newData} = array[i];
-          console.log(_id,fieldChanged,newData);
-          await updateDetails(_id,fieldChanged,newData).catch((error)=>{console.log(error)});
+          await replaceData(_id,fieldChanged,newData).catch((error)=>{console.log(error)});
         }
       }
       catch(error){console.log(error);}
@@ -190,8 +162,6 @@ export default function LoginScreen() {
   useEffect(() => {
     const checkLoggedInUser = async () => {
       try {
-        const clearApp = async() => {await clearAppData();}
-        //clearApp();
         console.log("Hello")
         const data = await SecureStore.getItemAsync('user_data');
         if (data) {
@@ -201,35 +171,26 @@ export default function LoginScreen() {
 
           if (userData.isLoggedIn) {
             console.log(userData);
-            const res = await axios.post("https://swapkard.onrender.com/api/v1/loginMobileSignedUp ", {
+            const res = await axios.post("http://10.50.27.202:5000/api/v1/loginMobileSignedUp ", {
               email: email,
               password: password
             });
 
             if (res.data.success) {
-              console.log("************************************",res.data.user);
               downloadImageList(res.data.user.deltaPending,'pendingList');
               downloadImageList(res.data.user.deltaConnection,'contactList');
-              updateDetails(res.data.user.eventQueue);
-
+              await updateDetails(res.data.user.eventQueue);
               saveToDatabasePending(res.data.user.deltaPending);
               saveToDatabaseContact(res.data.user.deltaConnection);
-
               await deleteConnections(res.data.user.deletedConnections);
-
               const currentPendingList = await getPendingList();
               const currentContactList = await getContactList();
-
               res.data.user.pendingList = currentPendingList || [];
               res.data.user.contactList = currentContactList || [];
               res.data.user.token = res.data.token;
               res.data.user.name = userData.name;
               res.data.user.email = userData.email;
               res.data.user.phone = userData.phone;
-              
-              console.log("**********************",res.data.user.pendingList);
-              console.log("**********************",res.data.user.contactList);
-
               dispatch({ type: 'SET_USER', payload: res.data.user });
               handleLogin();
             }
@@ -264,18 +225,15 @@ export default function LoginScreen() {
             try {
               if (!hasPreviousEntry.current){
                 console.log("No previous entry found")
-                const res = await axios.post("https://swapkard.onrender.com/api/v1/loginMobile", {
+                const res = await axios.post("http://10.50.27.202:5000/api/v1/loginMobile", {
                   email:values.email,
                   password:values.password
                 });
                 if (res.data.success) {
-
                   res.data.user.token = res.data.token;
                   dispatch({type:'SET_USER',payload:res.data.user});
-
                   await initializeDatabase();
                   await downloadImage(res.data.user.avatar,"User",res.data.user._id);
-                  
                   downloadImageList(res.data.user.pendingList,"pendingList").catch((error)=>{console.log(error)});
                   downloadImageList(res.data.user.contactList,"contactList").catch((error)=>{console.log(error)});
                   downloadImageList(res.data.user.deltaPending,"pendingList").catch((error)=>{console.log(error)});
@@ -285,21 +243,15 @@ export default function LoginScreen() {
                   saveToDatabaseContact(res.data.user.deltaConnection).catch((error)=>{console.log(error)});
                   saveToDatabaseContact(res.data.user.contactList).catch((error)=>{console.log(error)});
                   saveToDatabasePending(res.data.user.pendingList).catch((error)=>{console.log(error)});
-
                   const pendingList = [...res.data.user.pendingList,...res.data.user.deltaPending].map(({ avatar, ...rest }) => rest);
                   const contactList = [...res.data.user.contactList, ...res.data.user.deltaConnection].map(({ avatar, ...rest }) => rest);  
-
                   res.data.user.pendingList = pendingList;
                   res.data.user.contactList = contactList;
-
                   const userBroadcastQR = res.data.qrBroadcast;
                   const userPrivateQR = res.data.qrPrivate;
-
                   console.log(res.data.user.deltaPending);
-
                   saveQRCode(res.data.user._id + '_broadcast.png', userBroadcastQR);
                   saveQRCode(res.data.user._id + '_private.png', userPrivateQR);
-
                   dispatch({type:'SET_USER',payload:res.data.user});
                   navigation.navigate("HomeScreen");
                 } 
@@ -310,27 +262,21 @@ export default function LoginScreen() {
               }
               else{
                 console.log("User setup already");
-                const res = await axios.post("https://swapkard.onrender.com/api/v1/loginMobileSignedUp", {
+                const res = await axios.post("http://10.50.27.202:5000/api/v1/loginMobileSignedUp", {
                   email: values.email,
                   password: values.password
                 });
                 if (res.data.success) {
                   downloadImageList(res.data.user.deltaPending,'pendingList');
                   downloadImageList(res.data.user.deltaConnection,'contactList');
-
                   saveToDatabasePending(res.data.user.deltaPending);
                   saveToDatabaseContact(res.data.user.deltaConnection);
-
                   await deleteConnections(res.data.user.deletedConnections);
                   await updateDetails(res.data.user.eventQueue);
-
                   const currentPendingList = await getPendingList();
                   const currentContactList = await getContactList();
-
-
                   res.data.user.pendingList = currentPendingList || [];
                   res.data.user.contactList = currentContactList || [];
-
                   res.data.user.token=res.data.token;
                   console.log(res.data.user);
                   dispatch({ type: 'SET_USER', payload: res.data.user });

@@ -61,6 +61,7 @@ io.on('connection', (socket) => {
     socket.on('sendRequest', async (data) => {
         try {
             const { senderId, receiverId } = data;
+            if (!senderId||!receiverId) console.log("Received Null values");
             const receiverSocketId = connections[receiverId];
             console.log('Received request from:', senderId, 'to', receiverId);
             User.findByIdAndUpdate(

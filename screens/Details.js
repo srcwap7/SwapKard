@@ -25,7 +25,7 @@ export default function Details({ route }) {
   const [showCelebration, setShowCelebration] = useState(false);
   const userId = useRef('');
 
-  const saveImage = async (fileName, base64Content) => {
+  const saveImage = async (fileName,base64Content) => {
     try {
       const userDirectory = `${FileSystem.documentDirectory}user/`;
       const filePath = `${userDirectory}${fileName}`;
@@ -100,7 +100,7 @@ export default function Details({ route }) {
               setPhone(`${values.countryCode}${values.phoneNo}`);
               initializeDatabase();
               const res = await axios.post(
-                'https://swapkard.onrender.com/api/v1/details',
+                'http://10.50.27.202:5000/api/v1/details',
                 {
                   name: nameRef.current,
                   email: emailRef.current,

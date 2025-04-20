@@ -12,7 +12,7 @@ export default function QRScanner({socket}) {
   const userObject = useSelector((state) => state.user);
 
   if (!permission) {
-    return <View style={styles.container} />;
+    return <View style={styles.container}/>;
   }
 
   if (!permission.granted) {
@@ -34,19 +34,26 @@ export default function QRScanner({socket}) {
   };
 
   const handleBarCodeScanned = ({ type, data }) => {
-    console.log(data);
-    data = JSON.parse(data);
-    const QRType = data.type;
-    console.log(data,QRType);  
-    if (QRType === 1){
-      socket.emit('sendRequest',{senderId:userObject.user.id,receiverId:data.id});
-      console.log("Request sent to id",data.id);
+    try{
+      console.log(data);
+      data = JSON.parse(data);
+      const QRType = data.type;
+      console.log(data,QRType);  
+      if (QRType === 1){
+        socket.emit('sendRequest',{senderId:userObject.user.id,receiverId:data.id});
+        console.log("Request sent to id",data.id);
+      }
+      else if (QRType === 0){
+        socket.emit('skipRequest',{senderId:userObject.user.id,receiverData:data});  
+        console.log("Skip Request sent to id",data.id);
+      }
+      setIsScanning(false);
     }
-    else if (QRType === 0){
-      socket.emit('skipRequest',{senderId:userObject.user.id,receiverData:data});  
-      console.log("Skip Request sent to id",data.id);
+    catch(error) {
+      console.log(error);
+      alert("Invalid QR code");
+      setIsScanning(false)
     }
-    setIsScanning(false);
   };
 
   return (

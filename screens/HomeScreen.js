@@ -60,7 +60,7 @@ export default function HomeScreen() {
     if (!isConnected){
       const token = userObject.user.token;
       console.log("Token is",token);
-      const newSocket = io('https://swapkard.onrender.com',{
+      const newSocket = io('http://10.50.27.202:5000',{
         auth: {
           token:token
         }
@@ -209,6 +209,9 @@ export default function HomeScreen() {
     const result = await getContactList();
     checkIfFileExists(result[0].id);
     console.log("Contact List as on disk is ",result);
+    const pendingList = await getPendingList();
+    console.log("Pending List as on disk is ",pendingList);
+    console.log("Pending List as on redux is ",userObject.user.pendingList);
   }
 
   const clearAll = async () => {

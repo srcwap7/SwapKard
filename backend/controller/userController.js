@@ -409,6 +409,7 @@ exports.loginUserMobileSignedUp = async(req,res,next)=>{
                 message: "Invalid email or password"
             });
         }
+
         const token = JWT.sign({ id: user1._id, email: user1.email }, process.env.JWT_SECRET, { expiresIn: '120h' });
 
         let userR = await user.findById(user1._id).select("_id name email deltaPending deltaConnection deletedConnections eventQueue").lean(); 
@@ -416,6 +417,8 @@ exports.loginUserMobileSignedUp = async(req,res,next)=>{
 
         userR.deltaPending    = await manuallyPopulateList(userR.deltaPending || [], fields);
         userR.deltaConnection = await manuallyPopulateList(userR.deltaConnection || [],fields);
+
+        console.log("**********",userR,"**************");
         
         return res.status(200).json({
             success: true,
@@ -598,7 +601,6 @@ exports.logoutUser = async (req, res, next) => {
 };
 
 exports.forgotPass = async (req, res, next) => {
-  
     const user1 = await user.findOne({ email: req.body.email });
     if (!user1) {
       return res.status(404).json({
@@ -610,7 +612,7 @@ exports.forgotPass = async (req, res, next) => {
     const resetToken = user1.getresetpass();
     await user1.save({ validateBeforeSave: false });
   
-    const resetPassURL = `https://swapkard.onrender.com/api/v1/resetPass/${resetToken}`;
+    const resetPassURL = `http://10.50.27.202:5000/api/v1/resetPass/${resetToken}`;
   
     const message = `Your password reset token is: \n\n ${resetPassURL} \n\nIf you have not send this request, please ignore.`;
   

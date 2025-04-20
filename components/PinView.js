@@ -26,7 +26,7 @@ const PinView = ({ setOtpmatched, counterOver, seconds, email,name,password,rese
                     console.log("Filled OTP:", value);
                     setOtp(value); 
                     try {
-                        const res = await axios.post('https://swapkard.onrender.com/api/v1/verify-email', { email: email, otp: value });
+                        const res = await axios.post('http://10.50.27.202:5000/api/v1/verify-email', { email: email, otp: value });
                         console.log("Response from server:", res.data);
                         if (res.data.success) {
                             setOtpmatched(true);
