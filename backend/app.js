@@ -7,8 +7,8 @@ const router = require("./routes/userRoutes");
 const http = require('http');
 const { Server } = require('socket.io'); 
 const jwt = require('jsonwebtoken');
-const User  = require('/home/coromandelexpress/SwapKard2.0/backend/models/userModels');
-require("dotenv").config({path:"/home/coromandelexpress/SwapKard2.0/backend/config/config.env"});
+const User  = require('../backend/models/userModels');
+require("dotenv").config();
 
 app.set('trust proxy', true);
 
