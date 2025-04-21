@@ -7,8 +7,8 @@ const router = require("./routes/userRoutes");
 const http = require('http');
 const { Server } = require('socket.io'); 
 const jwt = require('jsonwebtoken');
-const User  = require('../backend/models/userModels');
-require("dotenv").config();
+const User  = require('/home/coromandelexpress/SwapKard2.0/backend/models/userModels');
+require("dotenv").config({path:"/home/coromandelexpress/SwapKard2.0/backend/config/config.env"});
 
 app.set('trust proxy', true);
 
@@ -31,8 +31,8 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
     cors: {
-        origin: ['http://localhost:8081', 'http://localhost:8080'],
-        methods: ['GET', 'POST']
+        origin: ['http://localhost:8081','http://localhost:8080'],
+        methods: ['GET','POST']
     }
 });
 
@@ -42,15 +42,12 @@ io.use((socket,next)=>{
     const token = socket.handshake.auth.token;
     if (token) {
         jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
-            if (err) {
-                return next(new Error('Authentication error'));
-            }
+            if (err) {return next(new Error('Authentication error'));}
             socket.user = decoded;
             next();
         });
-    } else {
-        next(new Error('Authentication error'));
-    }
+    } 
+    else next(new Error('Authentication error'));
 });
 
 io.on('connection', (socket) => {
@@ -102,7 +99,6 @@ io.on('connection', (socket) => {
             const { senderId, receiverData } = data;
             const { id,type,randomHash } = receiverData;
             if (type === 0){
-                console.log("Ok,Broadcast Request");
                 const result = await User.findOne({_id:id,broadcastQRsalt:randomHash}).select('_id name email job workAt phone avatar age');
                 console.log(result,randomHash);
                 
@@ -111,7 +107,6 @@ io.on('connection', (socket) => {
                     console.log(sender);
                     try{
                         if (connections[id]) {      
-                            console.log("Done user Online!");  
                             const receiverSocketId=connections[id];
                             io.to(receiverSocketId).emit('requestAccepted',{accepter:sender});
                             User.findOneAndUpdate(
@@ -123,7 +118,6 @@ io.on('connection', (socket) => {
                             ).catch(err => console.log(`Error updating receiver ${id}:`, err));
                         }
                         else{
-                            console.log("Added to delta! User Offline");
                             User.findOneAndUpdate(
                                 {_id:id},
                                 { 
@@ -154,9 +148,6 @@ io.on('connection', (socket) => {
         try {
             const { senderId } = data;
             const sender = await User.findOne({ _id:senderId });
-
-            console.log(sender,senderId);
-
             if (sender) {
                 const { deltaPending, deltaConnection } = sender;
                 await User.findByIdAndUpdate(
@@ -184,7 +175,7 @@ io.on('connection', (socket) => {
 
     socket.on('changedDetails',async (data) =>{
         try{
-            console.log("Requesex Received         ");
+            console.log("Requesex Received");
             const {_id,fieldChanged,newData} = data;
             console.log(_id,fieldChanged,newData);
             User.findByIdAndUpdate(
@@ -192,44 +183,30 @@ io.on('connection', (socket) => {
                 {$set: { [fieldChanged]: newData }},
                 {new:true}
             ).catch((error)=>{console.log(error)});
-
             const result = await User.findById(_id);
             if (result){
-                //FOR EVERYONE IN THE CONTACT LIST SEND THE UPDATE INFO
                 for (let i=0;i<result.contactList.length;i+=1){
                     const userId = result.contactList[i].id;
-                    console.log(userId);
                     const receiverSocketId = connections[userId];
-                    if (receiverSocketId) {
-                        console.log(receiverSocketId);
-                        io.to(receiverSocketId).emit("changeDetected",{_id:_id,fieldChanged:fieldChanged,newData:newData});
-                    }
+                    if (receiverSocketId) io.to(receiverSocketId).emit("changeDetected",{_id:_id,fieldChanged:fieldChanged,newData:newData});
                     else{
-                        console.log(userId,"Offline");
-                        const res = await User.findByIdAndUpdate(
+                        User.findByIdAndUpdate(
                             userId,
                             {$push:{eventQueue:{_id:_id,fieldChanged:fieldChanged,newData:newData}}},
                             {new:true}
                         );
-                        console.log(res);
                     }
                 }
                 for (let i=0;i<result.invitationsSent.length;i+=1){
                     const userId = result.invitationsSent[i].id;
-                    console.log(userId);
                     const receiverSocketId = connections[userId];
-                    if (receiverSocketId) {
-                        console.log(receiverSocketId);
-                        io.to(receiverSocketId).emit("changeDetected",{_id:_id,fieldChanged:fieldChanged,newData:newData});
-                    }
+                    if (receiverSocketId) io.to(receiverSocketId).emit("changeDetected",{_id:_id,fieldChanged:fieldChanged,newData:newData});
                     else{
-                        console.log(userId,"Offline");
-                        const res = await User.findByIdAndUpdate(
+                        User.findByIdAndUpdate(
                             userId,
                             {$push:{eventQueue:{_id:_id,fieldChanged:fieldChanged,newData:newData}}},
                             {new:true}
                         );
-                        console.log(res);
                     }
                 }
             }
