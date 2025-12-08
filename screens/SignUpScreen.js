@@ -46,6 +46,7 @@ export default function SignUpScreen() {
               axios.post("https://swapkard.onrender.com/api/v1/sendOtp", { email: values.email })
                 .then((res) => {
                   if (res.data.success) {
+                    console.log(res.data.success);
                     setMailSent(true);
                     setRunning(true);
                   } else {
