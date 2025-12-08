@@ -11,7 +11,7 @@ exports.isAuthenticated = async (req, res, next) => {
             })
        }
        const decodedData= jwt.verify(token, process.env.JWT_SECRET);
-       const user1=await user.findOne({email: decodedData.email})
+       const user1=await user.findOne({email:decodedData.email})
        if(!user1){
         return res.status(401).json({
             success:false,
@@ -20,10 +20,11 @@ exports.isAuthenticated = async (req, res, next) => {
        }
        req.user=user1;
        next(); 
-    } catch (error) {
-       res.status(500).json({
-          success: false,
-          message: `Internal server errorrrrrr: ${error}`,
-       });
+    } 
+    catch (error) {
+      return res.status(500).json({
+         success: false,
+         message: `Internal server errorrrrrr: ${error}`,
+      });
     }
  };

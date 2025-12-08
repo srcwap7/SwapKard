@@ -9,11 +9,12 @@ exports.verifyToken = (req, res, next) => {
     }
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const { email, authentication_token } = decoded;
+        const {email,authentication_token} = decoded;
         console.log("Decoded token:", decoded);
-        req.user = { email:email, authentication_token:authentication_token };
+        req.user = {email:email,authentication_token:authentication_token};
         next();
-    } catch (error) {
+    } 
+    catch (error) {
         console.log(error);
         return res.status(401).json({
             success: false,

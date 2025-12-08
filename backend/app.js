@@ -7,8 +7,8 @@ const router = require("./routes/userRoutes");
 const http = require('http');
 const { Server } = require('socket.io'); 
 const jwt = require('jsonwebtoken');
-const User  = require('/home/coromandelexpress/SwapKard2.0/backend/models/userModels');
-require("dotenv").config({path:"/home/coromandelexpress/SwapKard2.0/backend/config/config.env"});
+const User  = require('../backend/models/userModels');
+require("dotenv").config({path:"../backend/config/config.env"});
 
 app.set('trust proxy', true);
 
@@ -20,10 +20,8 @@ app.use(cors({
 }));
 
 app.use(fileUpload({ useTempFiles: true }));
-
-
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({extended:true}));
 app.use(cookieParser());
 app.use("/api/v1", router);
 

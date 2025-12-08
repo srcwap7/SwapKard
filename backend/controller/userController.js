@@ -313,7 +313,8 @@ exports.registerUser = async (req,res,next) => {
         };
 
         req.user = user1;
-        res.cookie('is_auth', true, {
+
+        res.cookie('is_auth',true,{
           httpOnly: false,
           secure: true,
           sameSite: "none",
@@ -325,6 +326,7 @@ exports.registerUser = async (req,res,next) => {
           user: user1,
           token: token
         });
+
     } catch (error) {
       return res.status(500).json({
         success: false,
@@ -550,13 +552,6 @@ exports.loginUser = async (req, res, next) => {
             sameSite: "none",
             expires: new Date(Date.now() + 200 * 60 * 60 * 1000) 
         };
-        res.cookie('token', token, option);
-        res.cookie('is_auth', true, {
-            httpOnly: false,
-            secure: true,
-            sameSite: "none",
-            expires: new Date(Date.now() + 200 * 60 * 60 * 1000)
-        });
         return res.status(200).json({
             success: true,
             user:user1,
