@@ -1,4 +1,4 @@
-const express=require("express");
+const express = require("express");
 const {sendEmailOtp,loginUser,logoutUser,forgotPass,resetPassword,loadUser,verifyEmail,uploadProfilePic,registerUserMobile } = require("../controller/userController");
 const {forgotPasswordMobile, resetPasswordMobile, loginUserMobileSignedUp} = require("../controller/userController");
 const {loginUserMobile} = require("../controller/userController");
@@ -6,7 +6,6 @@ const { isAuthenticated } = require("../middleware/auth");
 const {verifyToken} = require("../middleware/isTokenValid");
 
 const router=express.Router();
-
 
 router.route("/verify-email").post(verifyEmail);
 router.route("/forgotPass").post(forgotPass)

@@ -8,7 +8,7 @@ const http = require('http');
 const { Server } = require('socket.io'); 
 const jwt = require('jsonwebtoken');
 const User  = require('../backend/models/userModels');
-require("dotenv").config({path:"../backend/config/config.env"});
+require("dotenv").config({path:"config.env"});
 
 app.set('trust proxy', true);
 

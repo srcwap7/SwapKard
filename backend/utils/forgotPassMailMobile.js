@@ -1,5 +1,6 @@
 const sendEmailVerificationModel= require("../models/emailVerification");
 const nodemailer=require("nodemailer");
+require('dotenv').config({path:"../config.env"});
 
 const sendForgotPassOTP=async (req, user)=>{
     const otp=Math.floor(1000 + Math.random()*9000);
@@ -19,4 +20,5 @@ const sendForgotPassOTP=async (req, user)=>{
         html: `<p>Dear ${user.name},</p> <p>Following is your otp for resetting password of your SwapKard account</p>: ${otp}</h2>`
     });
 }
+
 module.exports= sendForgotPassOTP;

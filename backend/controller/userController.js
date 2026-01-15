@@ -7,7 +7,7 @@ const sendEmailVerificationOTP = require("../utils/sendVerificationOTP");
 const sendEmailVerificationModel = require("../models/emailVerification");
 const cloudinary = require("cloudinary").v2;
 const qrcode = require('qrcode');
-require("dotenv").config();
+require("dotenv").config({path:"../config.env"});
 
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -33,7 +33,7 @@ exports.sendEmailOtp = async(req,res,next) => {
                     message:"User already exists"
                 });
             }
-            await sendEmailVerificationOTP(req, email);
+            sendEmailVerificationOTP(req, email).catch((err)=>{console.log(err);})
             return res.status(200).json({
                 success:true,
                 message:"OTP sent successfully"
@@ -448,7 +448,7 @@ exports.forgotPass = async (req, res, next) => {
     const resetToken = user1.getresetpass();
     await user1.save({ validateBeforeSave: false });
   
-    const resetPassURL = `https://swapkard.onrender.com/api/v1/resetPass/${resetToken}`;
+    const resetPassURL = `http://localhost:2000/v1/resetPass/${resetToken}`;
   
     const message = `Your password reset token is: \n\n ${resetPassURL} \n\nIf you have not send this request, please ignore.`;
   
