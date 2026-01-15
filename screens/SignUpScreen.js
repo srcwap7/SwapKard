@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView} from 'react-native';
 import { Formik } from 'formik';
 import PinView from '../components/PinView';
 import Icon from 'react-native-vector-icons/Ionicons';

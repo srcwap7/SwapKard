@@ -217,12 +217,8 @@ exports.resetPasswordMobile = async(req,res,next) => {
                 message:"Invalid authentication token"
             });
         }
-
-
         const email = req.body.email;
-
         const password = req.body.password;
-
         console.log(email,password,transactionEmail);
 
         if (email !== transactionEmail){
@@ -260,81 +256,6 @@ exports.resetPasswordMobile = async(req,res,next) => {
         });
     }
 }
-
-exports.registerUser = async (req,res,next) => {
-    try {
-        const {name,email,password,job,workAt,age,phone} = req.body;
-        console.log(req.files);
-        const profilePicture = req.files?.profilePicture;
-
-        if (!name || !email || !password || !age || !job || !workAt) {
-          return res.status(400).json({
-            message: "Give complete Data"
-          });
-        }
-
-        const existingUser = await user.findOne({ email });
-        if (existingUser) {
-          return res.status(409).json({
-            success: false,
-            message: "User already exists"
-          });
-        }
-
-        let profilePictureUrl = "";
-        if (profilePicture) {
-          const cloudinaryResult = await cloudinary.uploader.upload(profilePicture.tempFilePath, {
-            folder: "user_profiles",
-            width: 500,
-            crop: "scale"
-          });
-          console.log(cloudinaryResult);
-          profilePictureUrl = cloudinaryResult.secure_url;
-        }
-
-        const hashedPass = await bcrypt.hash(password, 10);
-        const user1 = await user.create({
-          name,
-          email,
-          password: hashedPass,
-          avatar: profilePictureUrl,
-          phone:phone,
-          job,
-          workAt,
-          age
-        });
-
-        const token = await JWT.sign({ id: user1._id, email: user1.email }, process.env.JWT_SECRET, { expiresIn: '200h' });
-        const option = {
-          httpOnly: false,
-          secure: true,
-          sameSite: "none",
-          expires: new Date(Date.now() + 200 * 60 * 60 * 1000)
-        };
-
-        req.user = user1;
-
-        res.cookie('is_auth',true,{
-          httpOnly: false,
-          secure: true,
-          sameSite: "none",
-          expires: new Date(Date.now() + 200 * 60 * 60 * 1000)
-        });
-
-        return res.status(200).cookie('token', token, option).json({
-          success: true,
-          user: user1,
-          token: token
-        });
-
-    } catch (error) {
-      return res.status(500).json({
-        success: false,
-        error: error.message,
-        message: "Internal Server error"
-      });
-    }
-  };
   
 
   exports.verifyEmail = async (req, res) => {
@@ -361,14 +282,11 @@ exports.registerUser = async (req,res,next) => {
 
         const authentication_token = crypto.randomBytes(32).toString('hex');
 
-        console.log("Generated authentication token:", authentication_token);
-
         const token = JWT.sign(
             { email, authentication_token },
             my_secret_key,
             { expiresIn: '15m' }
         );
-
     
         await sendEmailVerificationModel.findOneAndUpdate(
             { userEmail: email },
@@ -413,14 +331,12 @@ exports.loginUserMobileSignedUp = async(req,res,next)=>{
         }
 
         const token = JWT.sign({ id: user1._id, email: user1.email }, process.env.JWT_SECRET, { expiresIn: '120h' });
-
         let userR = await user.findById(user1._id).select("_id name email deltaPending deltaConnection deletedConnections eventQueue").lean(); 
         const fields          = '_id name email job workAt avatar phone age';   
 
         userR.deltaPending    = await manuallyPopulateList(userR.deltaPending || [], fields);
         userR.deltaConnection = await manuallyPopulateList(userR.deltaConnection || [],fields);
 
-        console.log("**********",userR,"**************");
         
         return res.status(200).json({
             success: true,
@@ -520,81 +436,6 @@ exports.loginUserMobile = async (req, res, next) => {
     }
 };
 
-
-exports.loginUser = async (req, res, next) => {
-    try {
-        const { email, password } = req.body;
-        if (!email || !password) {
-            return res.status(400).json({
-                success: false,
-                message: "Enter complete data."
-            });
-        }
-        const user1 = await user.findOne({ email });
-        if (!user1) {
-            console.log("User not found");
-            return res.status(400).json({
-                success: false,
-                message: "Invalid email or password"
-            });
-        }
-        const comp = await bcrypt.compare(password, user1.password);
-        if (!comp) {
-            return res.status(400).json({
-                success: false,
-                message: "Invalid email or password"
-            });
-        }
-        const token = JWT.sign({ id: user1._id, email: user1.email }, process.env.JWT_SECRET, { expiresIn: '120h' });
-        const option = {
-            httpOnly: false,
-            secure: true,  
-            sameSite: "none",
-            expires: new Date(Date.now() + 200 * 60 * 60 * 1000) 
-        };
-        return res.status(200).json({
-            success: true,
-            user:user1,
-            token:token
-        });
-    } catch (error) {
-        console.log(error);
-        return res.status(500).json({
-            success: false,
-            message: `Internal Server error: ${error}`
-        });
-    }
-};
-
-exports.logoutUser = async (req, res, next) => {
-    try {
-        res.cookie('token', null, {
-            httpOnly: false,
-            secure: true, 
-            sameSite: "none",
-            expires: new Date(Date.now()) 
-        });
-
-        res.cookie('is_auth', false, {
-            httpOnly: false, 
-            secure: true, 
-            sameSite: "none",
-            expires: new Date(Date.now()) 
-        });
-
-        req.user = null; 
-        return res.status(200).json({
-            success: false,
-            message: "Logged out successfully"
-        });
-    } catch (error) {
-        return res.status(500).json({
-            success: false,
-            message: `Internal server error: ${error.message}` 
-        });
-    }
-};
-
 exports.forgotPass = async (req, res, next) => {
     const user1 = await user.findOne({ email: req.body.email });
     if (!user1) {
@@ -688,35 +529,14 @@ exports.loadUser=async(req, res, next)=>{
             success:true,
             user1
         })
-    }catch(error){
+    }
+    catch(error){
         return res.status(500).json({
             success:false,
             message:"Internal sever error", error
         })
     }
 }
-
-exports.updateProf=async(req, res, next)=>{
-    try{
-        const user1=req.user;
-        const user2=await user.findByIdAndUpdate(user1.id , req.body , {
-            new:true,
-            runValidators:true,
-            userFindAndModify:false
-        })
-        await user1.save();
-        req.user=user2;
-        return res.status(200).json({
-            success:true,
-            user2
-        })
-    }catch(error){
-        return res.status(500).json({
-            success:false,
-            message:"Internal server error"
-        })
-    }
-};
 
 exports.generateQR = async (req, res, next) => {
     try {
@@ -763,110 +583,3 @@ exports.generateQR = async (req, res, next) => {
         });
     }
 };
-
-exports.onScan = async(req, res, next)=>{
-    try{
-        const {qrId, myId, isBroadcast} = req.body;
-        const bro = await user.findById(qrId);
-        const me = await user.findById(myId);
-        if(!bro || !me){
-            return res.status(400).json({
-                success:false,
-                message:"User doesn't exists"
-            })
-        }
-        if(isBroadcast == 0){
-            bro.pendingList.push(myID);
-            await bro.save();
-        }
-        if(isBroadcast == 1){
-            me.contactList.push(qrId);
-            await me.save();
-        }
-        return res.status(200).json({
-            success:true,
-            isBroadcast,
-            me,
-            bro
-        })
-    }catch(error){
-        return res.status(500).json({
-            success:false,
-            message:error.message
-        })
-    }
-}
-
-exports.loadPending = async (req, res, next) => {
-    try {
-        const user1 = await user.findById(req.user._id).populate('pendingList', 'name email job workAt avatar age'); 
-
-        if (!user1 || !user1.pendingList) {
-            return res.status(404).json({
-                success: false,
-                message: "No pending connections found"
-            });
-        }
-
-        return res.status(200).json({
-            success: true,
-            pendings: user1.pendingList
-        });
-    } catch (error) {
-        return res.status(500).json({
-            success: false,
-            message: error.message
-        });
-    }
-};
-
-exports.loadContact = async (req, res, next) => {
-    try {
-        const user1 = await user.findById(req.user._id).populate('contactList', 'name email job workAt avatar age'); 
-
-        if (!user1 || !user1.contactList) {
-            return res.status(404).json({
-                success: false,
-                message: "No pending connections found"
-            });
-        }
-
-        return res.status(200).json({
-            success: true,
-            contacts: user1.pendingList 
-        });
-    } catch (error) {
-        return res.status(500).json({
-            success: false,
-            message: error.message
-        });
-    }
-};
-
-
-
-exports.acceptInvite = async(req, res, next) =>{
-    try{
-        const {myId, broId} = req.body;
-        const me = await user.findById(myId);
-        const bro = await user.findById(broId);
-        if(!me || !bro){
-            return res.status(400).json({
-                success: false,
-                message: "User doesn't exists"
-            })
-        }
-        bro.contactList.push(myId);
-        me.contactList.push(broId);
-        return res.status(200).json({
-            success: true,
-            me,
-            bro
-        })
-    }catch(error){
-        return res.status(500).json({
-            success: false,
-            message: error.message
-        });
-    }
-}

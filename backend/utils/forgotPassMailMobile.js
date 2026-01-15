@@ -1,13 +1,12 @@
 const sendEmailVerificationModel= require("../models/emailVerification");
 const nodemailer=require("nodemailer");
+
 const sendForgotPassOTP=async (req, user)=>{
     const otp=Math.floor(1000 + Math.random()*9000);
     await sendEmailVerificationModel.findOneAndDelete({userEmail:user});
     await new sendEmailVerificationModel({userEmail:user, otp:otp}).save();
     let transporter = nodemailer.createTransport({
-        host:process.env.EMAIL_HOST,
-        port: process.env.EMAIL_PORT,
-        secure: false,
+        service:'gmail',
         auth: {
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_PASS

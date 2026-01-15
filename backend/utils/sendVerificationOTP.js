@@ -4,20 +4,18 @@ const nodemailer=require("nodemailer");
 const sendEmailVerificationOTP=async (req, user)=>{
     const otp=Math.floor(1000 + Math.random()*9000);
     await sendEmailVerificationModel.findOneAndDelete({userEmail:user});
-    await new sendEmailVerificationModel({userEmail:user, otp:otp}).save();
+    await new sendEmailVerificationModel({userEmail:user,otp:otp}).save();
     console.log("user: ",user,"Otp: ",otp);
     try{
         let transporter = nodemailer.createTransport({
-            host:process.env.EMAIL_HOST,
-            port: process.env.EMAIL_PORT,
-            secure: false,
+            service:'gmail',
             auth: {
-                user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_PASS
+                user:process.env.EMAIL_USER,
+                pass:process.env.EMAIL_PASS
             },
         })
         await transporter.sendMail({
-            from: process.env.EMAIL_FROM,
+            from:process.env.EMAIL_FROM,
             to: user,
             subject: "OTP for Account verification",
             html: `<p>Dear ${user.name},</p><p>Thank you for signing up with SwapKard. To complete you registration, please verify your email address by entering the following one-time-password (OTP): ${otp}</h2>`
@@ -27,4 +25,5 @@ const sendEmailVerificationOTP=async (req, user)=>{
         console.log(error);
     }
 }
+
 module.exports= sendEmailVerificationOTP;
