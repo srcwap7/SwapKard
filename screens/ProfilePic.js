@@ -99,7 +99,7 @@ export default function ProfilePic({route}) {
       }, 'profilePicture.jpg');
   
       const res = await axios.post(
-        'http://localhost:2000/v1/uploadProfilePic',
+        `http://10.10.209.128:2000/api/v1/uploadProfilePic`,
         formData,
         {
           headers: {

@@ -1,4 +1,4 @@
-import React, { useEffect , useRef} from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image, ScrollView } from 'react-native';
 import { useDispatch } from 'react-redux';
 import { Formik } from 'formik';
@@ -6,404 +6,291 @@ import { useNavigation } from '@react-navigation/native';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import * as FileSystem from 'expo-file-system';
-import {initializeDatabase,getPendingList,insertPendingUser,getContactList,insertContactUser,deleteContactUser,replaceData} from '../utils/database';
+import {
+  initializeDatabase,
+  getPendingList,
+  insertPendingUser,
+  getContactList,
+  insertContactUser,
+  deleteContactUser,
+  replaceData
+} from '../utils/database';
 import { deleteContactFile } from '../utils/fileManipulation';
+
+// Utility Functions
+const downloadImage = async (imageUrl, directory, id) => {
+  try {
+    const directoryUri = `${FileSystem.documentDirectory}user${directory}/profilePics/`;
+    const fileUri = `${directoryUri}${id}_profile_pic.jpg`;
+    const dirInfo = await FileSystem.getInfoAsync(directoryUri);
+    if (!dirInfo.exists) {
+      await FileSystem.makeDirectoryAsync(directoryUri, { intermediates: true });
+    }
+    const { uri } = await FileSystem.createDownloadResumable(imageUrl, fileUri).downloadAsync();
+    return uri;
+  } catch (error) {
+    console.error('Error downloading image:', error);
+    throw error;
+  }
+};
+
+const downloadImageList = async (array, directory) => {
+  if (!array?.length) return;
+  await Promise.all(
+    array.map(({ avatar, _id }) => downloadImage(avatar, directory, _id))
+  );
+};
+
+const saveSecureData = async (data, password) => {
+  try {
+    await SecureStore.setItemAsync(
+      'user_data',
+      JSON.stringify({
+        email: data.email,
+        password,
+        name: data.name,
+        userId: data._id,
+        profilePicUrl: data.avatar,
+        isLoggedIn: true,
+        token: data.token,
+        hasSignedUp: true,
+        phone: data.phone
+      })
+    );
+  } catch (error) {
+    console.error('Failed to save data securely:', error);
+    alert('Failed to save user credentials');
+  }
+};
+
+const saveQRCode = async (fileName, base64Content) => {
+  try {
+    const userDirectory = `${FileSystem.documentDirectory}user/`;
+    const filePath = `${userDirectory}${fileName}`;
+    const dirInfo = await FileSystem.getInfoAsync(userDirectory);
+    if (!dirInfo.exists) {
+      await FileSystem.makeDirectoryAsync(userDirectory, { intermediates: true });
+    }
+    const cleanBase64 = base64Content.replace(/^data:image\/\w+;base64,/, '');
+    await FileSystem.writeAsStringAsync(filePath, cleanBase64, { encoding: FileSystem.EncodingType.Base64 });
+    return filePath;
+  } catch (error) {
+    console.error('Error saving QR code:', error);
+    alert('Disk full or other error occurred while saving file.');
+  }
+};
+
+const deleteConnections = async (array) => {
+  if (!array?.length) return;
+  await Promise.all(
+    array.map(id => Promise.all([deleteContactFile(id), deleteContactUser(id)]))
+  );
+};
+
+const updateDetails = async (array) => {
+  if (!array?.length) return;
+  await Promise.all(
+    array.map(({ _id, fieldChanged, newData }) => replaceData(_id, fieldChanged, newData))
+  );
+};
+
+const saveToDatabase = async (dataArray, insertFn, fields) => {
+  if (!dataArray?.length) return;
+  await Promise.all(
+    dataArray.map(item => {
+      const params = fields.map(field => item[field]);
+      return insertFn(...params);
+    })
+  );
+};
+
+const saveToDatabasePending = (dataArray) => saveToDatabase(dataArray, insertPendingUser, ['_id', 'name', 'email', 'job', 'workAt', 'phone', 'age']);
+const saveToDatabaseContact = (dataArray) => saveToDatabase(dataArray, insertContactUser, ['_id', 'name', 'email', 'job', 'workAt', 'phone', 'age']);
 
 export default function LoginScreen() {
   const navigation = useNavigation();
   const dispatch = useDispatch();
   const hasPreviousEntry = useRef(false);
 
-  const downloadImage = async (imageUrl,directory,id) => {
-    try {
-      const directoryUri = `${FileSystem.documentDirectory}user${directory}/profilePics/`;
-      const fileUri = `${directoryUri}${id}_profile_pic.jpg`;
-      const dirInfo = await FileSystem.getInfoAsync(directoryUri);
-      if (!dirInfo.exists) await FileSystem.makeDirectoryAsync(directoryUri, { intermediates: true });
-      const downloadResumable = FileSystem.createDownloadResumable(
-        imageUrl,
-        fileUri
-      );
-      const { uri } = await downloadResumable.downloadAsync();
-      console.log('File saved to:', uri);
-      return uri; 
-    } catch (error) {
-      console.error('Errora downloading the images:', error);
-      throw error;
-    }
-  };
-
-  const saveSecureData = async (data,password) => {
-    try {
-      await SecureStore.setItemAsync(
-        'user_data',
-        JSON.stringify({
-          email: data.email,
-          password: password,
-          name: data.name,
-          userId: data._id,
-          profilePicUrl: data.avatar,
-          isLoggedIn: true,
-          token: data.token,
-          hasSignedUp:true,
-          phone:data.phone
-        })
-      );
-    } catch (error) {
-      alert('Failed to save user credentials');
-      console.error('Failed to save data securely:', error);
-    }
-  };
-
-
-  const saveQRCode = async (fileName, base64Content) => {
-    try {
-      const userDirectory = `${FileSystem.documentDirectory}user/`;
-      const filePath = `${userDirectory}${fileName}`;
-      const dirInfo = await FileSystem.getInfoAsync(userDirectory);
-      if (!dirInfo.exists) await FileSystem.makeDirectoryAsync(userDirectory, { intermediates: true });
-      const cleanBase64Content = base64Content.replace(/^data:image\/\w+;base64,/, '');
-      await FileSystem.writeAsStringAsync(filePath,cleanBase64Content,{encoding: FileSystem.EncodingType.Base64,});
-      console.log('File saved to:', filePath);
-      return filePath;
-
-    }catch (error) {
-      console.error('Error saving file:', error);
-      alert('Disk full or other error occurred while saving file.');
-    }
-  };
-
-  const deleteConnections = async(array)=>{
-    if (array){
-      for (let i=0;i<array.length;i+=1){
-        var id = array[i];
-        deleteContactFile(id);
-        deleteContactUser(id);
-      }
-    }
-  };
-
-
-  const downloadImageList = async(array,name) => {
-    if (array){
-      try {
-        for (let i =0 ;i< array.length;i++){
-          const { avatar , _id } = array[i];
-          downloadImage(avatar,name,_id);
-        }
-      } catch (error) {
-        console.error('Errorb downloading the imagex:', error);
-        throw error;
-      }
-    }
-  };
-
-  const updateDetails = async(array) => {
-    if (array){
-      try{
-        for (let i =0;i<array.length;i++){
-          const {_id,fieldChanged,newData} = array[i];
-          await replaceData(_id,fieldChanged,newData).catch((error)=>{console.log(error)});
-        }
-      }
-      catch(error){console.log(error);}
-    }
-  }
-
-  const saveToDatabasePending = async(dataArray)=>{
-    if (dataArray){
-      try {
-        for (let i=0;i<dataArray.length;i++){
-          const { _id,name,email,job,workAt,phone,age} = dataArray[i];
-          await insertPendingUser(_id,name,email,job,workAt,phone,age).then(
-            ()=>console.log('success')
-          ).catch(
-            (error)=>{
-              console.log(error);
-            }
-          )
-        }
-
-      } catch (error) {
-        console.error('Error saving to database:', error);
-      }
-    }
-  };
-
-  const handleLogin = async () => {
-    console.log("Logged In");
+  const handleLogin = () => {
     navigation.reset({
       index: 0,
       routes: [{ name: 'HomeScreen' }],
     });
   };
-  
 
-  const saveToDatabaseContact = async(dataArray)=>{
-    if (dataArray){
-      try {
-        for (let i=0;i<dataArray.length;i++){
-          const { _id,name,email,phone,job,workAt,age} = dataArray[i];
-          await insertContactUser(_id,name,email,job,workAt,phone,age).then(
-            ()=>console.log('success')
-          ).catch(
-            (error)=>{
-              console.log(error);
-            }
-          )
-        }
-
-      } catch (error) {
-        console.error('Error saving to database:', error);
-      }
-    }
+  const syncUserData = async (userData, currentPendingList, currentContactList) => {
+    await Promise.all([
+      downloadImageList(userData.deltaPending, 'pendingList'),
+      downloadImageList(userData.deltaConnection, 'contactList'),
+      updateDetails(userData.eventQueue),
+      saveToDatabasePending(userData.deltaPending),
+      saveToDatabaseContact(userData.deltaConnection),
+      deleteConnections(userData.deletedConnections)
+    ]);
+    userData.pendingList = currentPendingList || [];
+    userData.contactList = currentContactList || [];
+    dispatch({ type: 'SET_USER', payload: userData });
+    handleLogin();
   };
 
   useEffect(() => {
     const checkLoggedInUser = async () => {
       try {
-        console.log("Hello")
-        const data = await SecureStore.getItemAsync('user_data');
-        if (data) {
-          console.log("Data found")
-          const userData = JSON.parse(data);
-          const { email, password } = userData;
-
+        const storedData = await SecureStore.getItemAsync('user_data');
+        if (storedData) {
+          const userData = JSON.parse(storedData);
           if (userData.isLoggedIn) {
-            console.log(userData);
-            const res = await axios.post("http://localhost:2000/v1/loginMobileSignedUp ", {
-              email: email,
-              password: password
+            hasPreviousEntry.current = true;
+            const res = await axios.post("http://10.10.209.128:2000/api/v1/loginMobileSignedUp", {
+              email: userData.email,
+              password: userData.password
             });
-
             if (res.data.success) {
-              downloadImageList(res.data.user.deltaPending,'pendingList');
-              downloadImageList(res.data.user.deltaConnection,'contactList');
-              await updateDetails(res.data.user.eventQueue);
-              saveToDatabasePending(res.data.user.deltaPending);
-              saveToDatabaseContact(res.data.user.deltaConnection);
-              await deleteConnections(res.data.user.deletedConnections);
-              const currentPendingList = await getPendingList();
-              const currentContactList = await getContactList();
-              res.data.user.pendingList = currentPendingList || [];
-              res.data.user.contactList = currentContactList || [];
-              res.data.user.token = res.data.token;
-              res.data.user.name = userData.name;
-              res.data.user.email = userData.email;
-              res.data.user.phone = userData.phone;
-              dispatch({ type: 'SET_USER', payload: res.data.user });
-              handleLogin();
+              const [currentPendingList, currentContactList] = await Promise.all([
+                getPendingList(),
+                getContactList()
+              ]);
+              await syncUserData({ ...res.data.user, ...userData, token: res.data.token }, currentPendingList, currentContactList);
             }
-          } else {
-            console.log("User not logged in");
           }
-        } else {
-          hasPreviousEntry.current = false;
-          console.log("No data found");
         }
       } catch (error) {
-        console.log("Error:", error);
-
+        console.error('Error checking logged in user:', error);
       }
     };
     checkLoggedInUser();
-  },[]);
+  }, []);
 
   return (
-  <View style={{ flex: 1 , justifyContent: 'center'}}>
-    <ScrollView style={styles.background}>
-      <View style={styles.rootView}>
-        <Image
-          source={require("../assets/logo.png")}
-          style={styles.logo}
-        />
-        <Text style={styles.headerText}>Welcome Back</Text>
-
-        <Formik
-          initialValues={{ email: '', password: '' }}
-          onSubmit={async (values) => {
-            try {
-              if (!hasPreviousEntry.current){
-                console.log("No previous entry found")
-                const res = await axios.post("http://localhost:2000/v1/loginMobile", {
-                  email:values.email,
-                  password:values.password
-                });
+    <View style={{ flex: 1, justifyContent: 'center' }}>
+      <ScrollView style={styles.background}>
+        <View style={styles.rootView}>
+          <Image source={require("../assets/logo.png")} style={styles.logo} />
+          <Text style={styles.headerText}>Welcome Back</Text>
+          <Formik
+            initialValues={{ email: '', password: '' }}
+            onSubmit={async (values) => {
+              try {
+                let endpoint = hasPreviousEntry.current ? "http://10.10.209.128:2000/api/v1/loginMobileSignedUp":"http://10.10.209.128:2000/api/v1/loginMobile";
+                const res = await axios.post(endpoint, values);
+                
                 if (res.data.success) {
-                  res.data.user.token = res.data.token;
-                  dispatch({type:'SET_USER',payload:res.data.user});
-                  await initializeDatabase();
-                  await downloadImage(res.data.user.avatar,"User",res.data.user._id);
-                  downloadImageList(res.data.user.pendingList,"pendingList").catch((error)=>{console.log(error)});
-                  downloadImageList(res.data.user.contactList,"contactList").catch((error)=>{console.log(error)});
-                  downloadImageList(res.data.user.deltaPending,"pendingList").catch((error)=>{console.log(error)});
-                  downloadImageList(res.data.user.deltaConnection,"contactList").catch((error)=>{console.log(error)});
-                  saveSecureData(res.data.user,values.password);
-                  saveToDatabasePending(res.data.user.deltaPending).catch((error)=>{console.log(error)});
-                  saveToDatabaseContact(res.data.user.deltaConnection).catch((error)=>{console.log(error)});
-                  saveToDatabaseContact(res.data.user.contactList).catch((error)=>{console.log(error)});
-                  saveToDatabasePending(res.data.user.pendingList).catch((error)=>{console.log(error)});
-                  const pendingList = [...res.data.user.pendingList,...res.data.user.deltaPending].map(({ avatar, ...rest }) => rest);
-                  const contactList = [...res.data.user.contactList, ...res.data.user.deltaConnection].map(({ avatar, ...rest }) => rest);  
-                  res.data.user.pendingList = pendingList;
-                  res.data.user.contactList = contactList;
-                  const userBroadcastQR = res.data.qrBroadcast;
-                  const userPrivateQR = res.data.qrPrivate;
-                  console.log(res.data.user.deltaPending);
-                  saveQRCode(res.data.user._id + '_broadcast.png', userBroadcastQR);
-                  saveQRCode(res.data.user._id + '_private.png', userPrivateQR);
-                  dispatch({type:'SET_USER',payload:res.data.user});
+                  const user = res.data.user;
+                  user.token = res.data.token;
+                  
+                  if (!hasPreviousEntry.current) {
+                    await initializeDatabase();
+                    await downloadImage(user.avatar, "User", user._id);
+                    await Promise.all([
+                      downloadImageList(user.pendingList,"pendingList"),
+                      downloadImageList(user.contactList,"contactList"),
+                      downloadImageList(user.deltaPending,"pendingList"),
+                      downloadImageList(user.deltaConnection,"contactList"),
+                      saveToDatabasePending(user.pendingList),
+                      saveToDatabaseContact(user.contactList),
+                      saveToDatabasePending(user.deltaPending),
+                      saveToDatabaseContact(user.deltaConnection),
+                      saveQRCode(`${user._id}_broadcast.png`,res.data.qrBroadcast),
+                      saveQRCode(`${user._id}_private.png`,res.data.qrPrivate)
+                    ]);
+                    await saveSecureData(user,values.password);
+                    user.pendingList = [...user.pendingList, ...user.deltaPending].map(({ avatar, ...rest }) => rest);
+                    user.contactList = [...user.contactList, ...user.deltaConnection].map(({ avatar, ...rest }) => rest);
+                  } 
+                  else{
+                    const [currentPendingList,currentContactList] = await Promise.all([getPendingList(),getContactList()]);
+                    await syncUserData(user,currentPendingList,currentContactList);
+                  }
+                  dispatch({ type: 'SET_USER', payload: user });
                   navigation.navigate("HomeScreen");
                 } 
                 else {
-                  console.log("Request failed");
                   alert("Invalid Credentials");
                 }
               }
-              else{
-                console.log("User setup already");
-                const res = await axios.post("http://localhost:2000/v1/loginMobileSignedUp", {
-                  email: values.email,
-                  password: values.password
-                });
-                if (res.data.success) {
-                  downloadImageList(res.data.user.deltaPending,'pendingList');
-                  downloadImageList(res.data.user.deltaConnection,'contactList');
-                  saveToDatabasePending(res.data.user.deltaPending);
-                  saveToDatabaseContact(res.data.user.deltaConnection);
-                  await deleteConnections(res.data.user.deletedConnections);
-                  await updateDetails(res.data.user.eventQueue);
-                  const currentPendingList = await getPendingList();
-                  const currentContactList = await getContactList();
-                  res.data.user.pendingList = currentPendingList || [];
-                  res.data.user.contactList = currentContactList || [];
-                  res.data.user.token=res.data.token;
-                  console.log(res.data.user);
-                  dispatch({ type: 'SET_USER', payload: res.data.user });
-                  navigation.navigate('HomeScreen');
-                }
-                else{
-                  console.log("Request failed");
-                  console.log(error);
-                }
+              catch (error) {
+                const errorMessage = error.response?.data?.message || 'An error occurred';
+                alert(errorMessage);
               }
-            } catch (error) {
-              console.log("Here we go!");
-              console.log(error);
-              const errorMessage = error.response?error.response.data.message:'An error occurred';
-              alert(errorMessage);
-            }
-          }}
-          validate={(values) => {
-            const errors = {};
-            if (!values.email) errors.email = 'Required';
-            else if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i.test(values.email)) errors.email = 'Invalid email address';
-            if (!values.password) errors.password = 'Required';
-            else if (values.password.length < 6) errors.password = 'Password must be at least 6 characters';
-            return errors;
-          }}
-        >
-          {({ handleChange, handleBlur, handleSubmit, values, touched, errors }) => (
-            <View style={styles.formContainer}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.labelText}>Email</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter your email"
-                  placeholderTextColor="#666"
-                  onChangeText={handleChange('email')}
-                  onBlur={handleBlur('email')}
-                  value={values.email}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
-                {touched.email && errors.email && (
-                  <Text style={styles.errorText}>{errors.email}</Text>
-                )}
+            }}
+            validate={(values) => {
+              const errors = {};
+              if (!values.email) {
+                errors.email = 'Required';
+              } 
+              else if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i.test(values.email)) {
+                errors.email = 'Invalid email address';
+              }
+              if (!values.password) {
+                errors.password = 'Required';
+              } else if (values.password.length < 6) {
+                errors.password = 'Password must be at least 6 characters';
+              }
+              return errors;
+            }}
+          >
+            {({ handleChange, handleBlur, handleSubmit, values, touched, errors }) => (
+              <View style={styles.formContainer}>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.labelText}>Email</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter your email"
+                    placeholderTextColor="#666"
+                    onChangeText={handleChange('email')}
+                    onBlur={handleBlur('email')}
+                    value={values.email}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                  />
+                  {touched.email && errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+                </View>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.labelText}>Password</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter your password"
+                    placeholderTextColor="#666"
+                    secureTextEntry
+                    onChangeText={handleChange('password')}
+                    onBlur={handleBlur('password')}
+                    value={values.password}
+                  />
+                  {touched.password && errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+                </View>
+                <TouchableOpacity style={styles.loginButton} onPress={handleSubmit}>
+                  <Text style={styles.loginButtonText}>Login</Text>
+                </TouchableOpacity>
               </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.labelText}>Password</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter your password"
-                  placeholderTextColor="#666"
-                  secureTextEntry
-                  onChangeText={handleChange('password')}
-                  onBlur={handleBlur('password')}
-                  value={values.password}
-                />
-                {touched.password && errors.password && (
-                  <Text style={styles.errorText}>{errors.password}</Text>
-                )}
-              </View>
-
-              <TouchableOpacity
-                style={styles.loginButton}
-                onPress={handleSubmit}
-              >
-                <Text style={styles.loginButtonText}>Login</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </Formik>
-
-        <View style={styles.footerLink}>
-          <Text style={styles.footerText}>New Here?</Text>
-          <TouchableOpacity onPress={() => navigation.navigate("SignUp")}>
-            <Text style={styles.linkText}>Get Started</Text>
-          </TouchableOpacity>
+            )}
+          </Formik>
+          <View style={styles.footerLink}>
+            <Text style={styles.footerText}>New Here?</Text>
+            <TouchableOpacity onPress={() => navigation.navigate("SignUp")}>
+              <Text style={styles.linkText}>Get Started</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.footerLink}>
+            <Text style={styles.footerText}>Forgot Password?</Text>
+            <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword")}>
+              <Text style={styles.linkText}>Click Here</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-
-        <View style={styles.footerLink}>
-          <Text style={styles.footerText}>Forgot Password?</Text>
-          <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword")}>
-            <Text style={styles.linkText}>Click Here</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </ScrollView>
-  </View>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  background: {
-    flex: 1,
-    backgroundColor: '#121212',
-  },
-  rootView: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  headerText: {
-    fontSize: 28,
-    fontWeight: '600',
-    color: '#ffffff',
-    marginBottom: 30,
-    letterSpacing: 0.5,
-  },
-  logo: {
-    width: 120,
-    height: 120,
-    marginBottom: 20,
-  },
-  formContainer: {
-    width: '100%',
-    maxWidth: 340,
-    marginVertical: 20,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  labelText: {
-    color: '#ffffff',
-    fontSize: 16,
-    marginBottom: 8,
-    fontWeight: '500',
-  },
+  background: { flex: 1, backgroundColor: '#121212' },
+  rootView: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 },
+  headerText: { fontSize: 28, fontWeight: '600', color: '#ffffff', marginBottom: 30, letterSpacing: 0.5 },
+  logo: { width: 120, height: 120, marginBottom: 20 },
+  formContainer: { width: '100%', maxWidth: 340, marginVertical: 20 },
+  inputGroup: { marginBottom: 20 },
+  labelText: { color: '#ffffff', fontSize: 16, marginBottom: 8, fontWeight: '500' },
   input: {
     height: 50,
     width: '100%',
@@ -415,46 +302,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#333',
   },
-  errorText: {
-    color: '#FF4D4D',
-    fontSize: 12,
-    marginTop: 5,
-    fontWeight: '500',
-  },
+  errorText: { color: '#FF4D4D', fontSize: 12, marginTop: 5, fontWeight: '500' },
   loginButton: {
     backgroundColor: '#6C63FF',
     paddingVertical: 15,
     borderRadius: 12,
     marginTop: 10,
     shadowColor: '#6C63FF',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 4.65,
     elevation: 8,
   },
-  loginButtonText: {
-    color: '#ffffff',
-    textAlign: 'center',
-    fontSize: 18,
-    fontWeight: '600',
-    letterSpacing: 0.5,
-  },
-  footerLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 8,
-  },
-  footerText: {
-    color: '#ffffff',
-    fontSize: 14,
-    marginRight: 6,
-  },
-  linkText: {
-    color: '#6C63FF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
+  loginButtonText: { color: '#ffffff', textAlign: 'center', fontSize: 18, fontWeight: '600', letterSpacing: 0.5 },
+  footerLink: { flexDirection: 'row', alignItems: 'center', marginVertical: 8 },
+  footerText: { color: '#ffffff', fontSize: 14, marginRight: 6 },
+  linkText: { color: '#6C63FF', fontSize: 14, fontWeight: '600' },
 });

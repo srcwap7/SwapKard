@@ -100,7 +100,7 @@ export default function Details({ route }) {
               setPhone(`${values.countryCode}${values.phoneNo}`);
               initializeDatabase();
               const res = await axios.post(
-                'http://localhost:2000/v1/details',
+                `http://10.10.209.128:2000/api/v1/details`,
                 {
                   name: nameRef.current,
                   email: emailRef.current,

@@ -16,25 +16,20 @@ export default function ForgotPasswordConfirmation({route}) {
             initialValues={{ password: '', confirmPassword: '' }}
             validate={(values) => {
               const errors = {};
-              if (!values.password) {
-                errors.password = "Password Required";
-              } else if (values.password.length < 6) {
-                errors.password = "Password must be at least 6 characters";
-              }
-              if (values.password !== values.confirmPassword) {
-                errors.confirmPassword = "Passwords do not match";
-              }
+              if (!values.password) errors.password = "Password Required";
+              else if (values.password.length < 6) errors.password = "Password must be at least 6 characters";
+              if (values.password !== values.confirmPassword) errors.confirmPassword = "Passwords do not match";
               return errors;
             }}
             onSubmit={async(values) => {
               try {
-                const res = await axios.post('http://localhost:2000/v1/resetPasswordMobile',
+                const res = await axios.post(`http://10.10.209.128:2000/api/v1/resetPasswordMobile`,
                   {
                     email: email,
                     password: values.password,
                   },
                   {
-                    headers: {
+                    headers:{
                       Authorization: `Bearer ${token}`
                     }
                   }
@@ -46,7 +41,8 @@ export default function ForgotPasswordConfirmation({route}) {
                   console.log(res.message);
                   alert("Profile not created " + res.message);
                 }
-              } catch (error) {
+              } 
+              catch(error){
                 const errorMessage = error.response ? error.response.data.message : 'An error occurred';
                 alert(errorMessage);
               }

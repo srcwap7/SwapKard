@@ -17,8 +17,8 @@ export async function moveFile(_id) {
       from: sourcePath,
       to: destinationPath,
     });
-    console.log(`File moved successfully to: ${destinationPath}`);
-  } catch (error) {console.error("Error moving file:", error);}
+  } 
+  catch (error) {console.error("Error moving file:", error);}
 }
 
 export async function deleteFile(_id) {
@@ -30,7 +30,6 @@ export async function deleteFile(_id) {
       return;
     }
     await FileSystem.deleteAsync(filePath);
-    console.log("File deleted successfully");
   } catch (error) {
     console.error("Error deleting file:", error);
   }
@@ -40,15 +39,9 @@ export async function checkIfFileExists(id) {
   const imageUri = `${FileSystem.documentDirectory}usercontactList/profilePics/${id}_profile_pic.jpg`;
   try {
     const fileInfo = await FileSystem.getInfoAsync(imageUri);
-    if (fileInfo.exists) {
-      console.log('✅ File exists at:', imageUri);
-      return true;
-    } else {
-      console.log('❌ File does not exist at:', imageUri);
-      return false;
-    }
+    return fileInfo.exists;
   } catch (error) {
-    console.error('⚠️ Error checking file existence:', error);
+    console.error(' Error checking file existence:', error);
     return false;
   }
 }
@@ -62,7 +55,6 @@ export async function deleteContactFile(_id) {
       return;
     }
     await FileSystem.deleteAsync(filePath);
-    console.log("File deleted successfully");
   } catch (error) {
     console.error("Error deleting file:", error);
   }

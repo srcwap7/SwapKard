@@ -2,7 +2,7 @@ const sendEmailVerificationModel= require("../models/emailVerification");
 const nodemailer=require("nodemailer");
 require('dotenv').config({path:"../config.env"});
 
-const sendForgotPassOTP=async (req, user)=>{
+const sendForgotPassOTP = async (req, user)=>{
     const otp=Math.floor(1000 + Math.random()*9000);
     await sendEmailVerificationModel.findOneAndDelete({userEmail:user});
     await new sendEmailVerificationModel({userEmail:user, otp:otp}).save();

@@ -60,11 +60,7 @@ export default function HomeScreen() {
     if (!isConnected){
       const token = userObject.user.token;
       console.log("Token is",token);
-      const newSocket = io('https://swapkard.onrender.com',{
-        auth: {
-          token:token
-        }
-      });
+      const newSocket = io('https://swapkard.onrender.com',{auth:{token:token}});
       
       setIsConnected(true);
       setSocket(newSocket);
@@ -149,10 +145,7 @@ export default function HomeScreen() {
           console.log(userObject.user.id);
           const path = FileSystem.documentDirectory + `userUser/profilePics/${userObject.user.id}_profile_pic.jpg`;
           const fileInfo = await FileSystem.getInfoAsync(path);
-          if (fileInfo.exists) {
-            setProfilePicUri(fileInfo.uri);
-            console.log(path,"Done");
-          }
+          if (fileInfo.exists) setProfilePicUri(fileInfo.uri);
           else console.log('Profile picture not found at:', path);
         } 
         catch (error) {console.error('Error loading profile pic:', error);}
@@ -203,20 +196,6 @@ export default function HomeScreen() {
     toggleMenu();
   };
 
-  const debuggerFunction = async() => {
-    console.log("UserObject is  ",userObject.user);
-    console.log("Contact List as on redux is ",userObject.user.contactList);
-    const result = await getContactList();
-    checkIfFileExists(result[0].id);
-    console.log("Contact List as on disk is ",result);
-    const pendingList = await getPendingList();
-    console.log("Pending List as on disk is ",pendingList);
-    console.log("Pending List as on redux is ",userObject.user.pendingList);
-  }
-
-  const clearAll = async () => {
-    await deleteAllContacts();
-  }
 
   return (
     <TouchableWithoutFeedback onPress={() => {
@@ -387,7 +366,3 @@ const styles = StyleSheet.create({
     borderColor: '#fff',
   },  
 });
-
-// file:///data/user/0/host.exp.exponent/files/userUser/profilePics/67fb565e3ff0344c7d39c5a2_profile_pic.jpg
-// file:///data/user/0/host.exp.exponent/files/usercontactList/profilePics/67fb58b0b64b51007adc2196_profile_pic.jpg
-// file:///data/user/0/host.exp.exponent/files/usercontactList/profilePics/67fb58b0b64b51007adc2196_profile_pic.jpg

@@ -4,12 +4,9 @@ const {forgotPasswordMobile, resetPasswordMobile, loginUserMobileSignedUp} = req
 const {loginUserMobile} = require("../controller/userController");
 const { isAuthenticated } = require("../middleware/auth");
 const {verifyToken} = require("../middleware/isTokenValid");
-
 const router=express.Router();
 
 router.route("/verify-email").post(verifyEmail);
-router.route("/forgotPass").post(forgotPass)
-router.route("/resetPass/:token").post(resetPassword)
 router.route("/sendOtp").post(sendEmailOtp);
 router.route("/uploadProfilePic").post(verifyToken,uploadProfilePic);
 router.route("/details").post(verifyToken,registerUserMobile);

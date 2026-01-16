@@ -28,7 +28,7 @@ export default function ForgotPassword() {
     try {
       console.log(values);
       setEmail(values.email);
-      const res = await axios.post("http://localhost:2000/v1/forgotPasswordMobile", {email:values.email});
+      const res = await axios.post(`http://10.10.209.128:2000/api/v1/forgotPasswordMobile`,{email:values.email});
       if (res.status === 200) {
         setMailSent(true);
         setRunning(true);

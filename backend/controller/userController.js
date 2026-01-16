@@ -3,18 +3,10 @@ const bcrypt=require("bcryptjs");
 const JWT=require("jsonwebtoken");
 const sendForgotPassOTP = require("../utils/forgotPassMailMobile");
 const crypto=require("crypto");
-const sendEmailVerificationOTP = require("../utils/sendVerificationOTP");
+const sendEmailVerificationOTP   = require("../utils/sendVerificationOTP");
 const sendEmailVerificationModel = require("../models/emailVerification");
-const cloudinary = require("cloudinary").v2;
+const cloudinary = require("../config/cloudinary_conf")
 const qrcode = require('qrcode');
-require("dotenv").config({path:"../config.env"});
-
-cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_SECRET_KEY,
-});
-
 
 exports.sendEmailOtp = async(req,res,next) => {
     try{
@@ -63,13 +55,16 @@ exports.registerUserMobile = async(req,res,next) => {
                 message: "Invalid authentication token"
             });
         }
+
         const {name,email,password,avatar,job,workAt,age,phone} = req.body;
         if (!name || !email || !password || !age || !job || !workAt) {
           return res.status(400).json({
             message: "Missing info"
           });
         }
+
         const existingUser = await user.findOne({ email });
+
         if (existingUser) {
           return res.status(409).json({
             success: false,
@@ -77,9 +72,7 @@ exports.registerUserMobile = async(req,res,next) => {
           });
         }
         const hashedPass = await bcrypt.hash(password, 10);
-
-        await sendEmailVerificationModel.findOneAndDelete({email:email,authenticationToken: authentication_token});
-
+        await sendEmailVerificationModel.findOneAndDelete({email:email,authenticationToken: authentication_token});z
         const privateQRSalt = crypto.randomBytes(48).toString('hex');
 
         const user1 = await user.create({
@@ -177,6 +170,7 @@ exports.uploadProfilePic = async(req,res,next) => {
         const profilePicture = req.files?.profilePicture;
         let profilePictureUrl = "";
         if (profilePicture) {
+          console.log(process.env.CLOUDINARY_API_KEY);
           const cloudinaryResult = await cloudinary.uploader.upload(profilePicture.tempFilePath, {
             folder: "user_profiles",
             width: 500,
@@ -209,9 +203,7 @@ exports.resetPasswordMobile = async(req,res,next) => {
         const transactionEmail = req.user.email;
         const authentication_token = req.user.authentication_token;
         const result = await sendEmailVerificationModel.findOne({userEmail:transactionEmail,authenticationToken:authentication_token});
-
         if (!result){
-            console.log("No such account found");
             return res.status(401).json({
                 success:false,
                 message:"Invalid authentication token"
@@ -219,11 +211,8 @@ exports.resetPasswordMobile = async(req,res,next) => {
         }
         const email = req.body.email;
         const password = req.body.password;
-        console.log(email,password,transactionEmail);
-
+        
         if (email !== transactionEmail){
-
-            console.log("Security Error");  
             return res.status(401).json({
                 success:false,
                 message:"Security Error"
@@ -237,18 +226,12 @@ exports.resetPasswordMobile = async(req,res,next) => {
             });
         }
 
-        await user.findOneAndUpdate({email:email},{password:req.body.password});
-
+        const hashedPass = await bcrypt.hash(req.body.password,10);
+        await user.findOneAndUpdate({email:email},{password:hashedPass});
         await sendEmailVerificationModel.findOneAndDelete({userEmail:email,authenticationToken:authentication_token});
-
-        return res.status(200).json({
-            success:true,
-            message:"Password reset successfully"
-        });
-        
+        return res.status(200).json({success:true,message:"Password reset successfully"});
     }
     catch(error){
-        console.log(error);
         return res.status(500).json({
             success:false,
             error:error.message,
@@ -435,108 +418,6 @@ exports.loginUserMobile = async (req, res, next) => {
         });
     }
 };
-
-exports.forgotPass = async (req, res, next) => {
-    const user1 = await user.findOne({ email: req.body.email });
-    if (!user1) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
-    }
-
-    const resetToken = user1.getresetpass();
-    await user1.save({ validateBeforeSave: false });
-  
-    const resetPassURL = `http://localhost:2000/v1/resetPass/${resetToken}`;
-  
-    const message = `Your password reset token is: \n\n ${resetPassURL} \n\nIf you have not send this request, please ignore.`;
-  
-    try {
-      await sendEmail({
-        email: user1.email,
-        subject: "Ecommerce Password recovery",
-        message,
-      });
-      return res.status(200).json({
-        success: true,
-        message: "Email sent successfully",
-        user1: req.user,
-      });
-    }catch (error) {
-      user1.resetPasswordToken = undefined;
-      user1.resetPasswordExpite = undefined;
-      await user1.save({ validateBeforeSave: false });
-      return res.status(500).json({
-        success: false,
-        message: `Internal server error: ${error}`,
-      });
-    }
-
-};
-
-exports.resetPassword= async(req, res)=>{
-    try{
-        const {password, confirmPass} = req.body;
-        if(!password || !confirmPass){
-            return res.status(401).json({
-                success:false,
-                message:"Enter complete data"
-            })
-        }
-        if(password != confirmPass){
-            return res.status(400).json({
-                success:false,
-                message:"Password not matching"
-            })
-        } 
-        const tokenRecieved=crypto.createHash("sha256").update(req.params.token).digest("hex");
-        const user1=await user.findOne({resetPasswordToken:tokenRecieved});
-        if(!user1){
-            return res.status(400).json({
-                success:false,
-                message:"Invalid request"
-            })
-        }
-        const newPassword=await bcrypt.hash(password, 10);
-        user1.password=newPassword;
-        user1.resetPasswordToken=undefined;
-        user1.resetPasswordExpire=undefined
-        await user1.save();
-        return res.status(200).json({
-            success:true,
-            message:"Password changed successfully"
-        })
-    }catch(error){
-        return res.status(500).json({
-            success: false,
-            message: `Internal server error: ${error}`,
-        });    
-    }
-}
-
-
-exports.loadUser=async(req, res, next)=>{
-    try{
-        const user1=req.user;
-        if(!user1){
-            return res.status(400).json({
-                success:false,
-                message:"Currently not logged in"
-            })
-        }
-        return res.status(200).json({
-            success:true,
-            user1
-        })
-    }
-    catch(error){
-        return res.status(500).json({
-            success:false,
-            message:"Internal sever error", error
-        })
-    }
-}
 
 exports.generateQR = async (req, res, next) => {
     try {
