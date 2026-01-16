@@ -72,7 +72,7 @@ exports.registerUserMobile = async(req,res,next) => {
           });
         }
         const hashedPass = await bcrypt.hash(password, 10);
-        await sendEmailVerificationModel.findOneAndDelete({email:email,authenticationToken: authentication_token});z
+        await sendEmailVerificationModel.findOneAndDelete({email:email,authenticationToken: authentication_token});
         const privateQRSalt = crypto.randomBytes(48).toString('hex');
 
         const user1 = await user.create({
