@@ -46,7 +46,7 @@ exports.registerUserMobile = async(req,res,next) => {
     try {
         const transactionEmail = req.user.email;
         const authentication_token = req.user.authentication_token;
-        const result = await sendEmailVerificationModel.findOneAndDelete({ userEmail:transactionEmail,authenticationToken:authentication_token });
+        const result = await sendEmailVerificationModel.findOne({ userEmail:transactionEmail,authenticationToken:authentication_token });
         if (!result) {
             console.log(transactionEmail,authentication_token);
             console.log(result);
@@ -112,7 +112,7 @@ exports.registerUserMobile = async(req,res,next) => {
           qrBroadcast: qrCodeB,
           qrPrivate: qrCodeA,
           user: user1,
-          token: token
+          token:token
         });
     }
     catch (error) {

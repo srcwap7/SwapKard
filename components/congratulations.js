@@ -16,8 +16,6 @@ export const CelebrationModal = ({ isVisible, onClose }) => {
   }, [isVisible]);
 
   return (
-
-    
     <Modal
       transparent
       visible={isVisible}
