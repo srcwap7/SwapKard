@@ -64,7 +64,7 @@ const PinView = ({ setOtpmatched, counterOver, seconds, email,name,password,rese
 }
 
 const styles = StyleSheet.create({
-    pinView: {
+    pinView:{
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'center',

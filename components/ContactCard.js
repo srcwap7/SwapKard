@@ -13,7 +13,7 @@ const ContactCard = ({ id, name, job, workAt, phoneNo, email, socket }) => {
   const cardWidth = screenWidth - 32;
   const imageSize = 80;
   const User = useSelector((state) => state.user);
-  const imageUri = `${FileSystem.documentDirectory}usercontactList/profilePics/${id}_profile_pic.jpg`;
+  const imageUri = `${FileSystem.documentDirectory}user/contactListprofilePics/${id}_profile_pic.jpg`;
   const dispatch = useDispatch();
 
   const styles = StyleSheet.create({

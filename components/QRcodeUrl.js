@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Image, View, StyleSheet, Dimensions ,Text} from 'react-native';
-import * as FileSystem from 'expo-file-system';
+import {File,Directory,Paths} from 'expo-file-system';
 import { useSelector } from 'react-redux';
 
 export default function YourComponent({flag}) {
@@ -12,11 +12,10 @@ export default function YourComponent({flag}) {
   useEffect(() => {
     console.log('User:',flag);
     const loadImage = async () => {
-      const filePath = `${FileSystem.documentDirectory}user/${User.user.id}_${flag}.png`;
-      const fileInfo = await FileSystem.getInfoAsync(filePath);
-      console.log(filePath);
-      if (fileInfo.exists) setImageUri(`file://${filePath}`);
-    };
+      const directory = new Directory(Paths.document,"user");
+      const filePath = new File(directory,`${User.user.id}_${flag}.png`);
+      if (filePath.exists) setImageUri(filePath.uri);
+    }
     loadImage();
   }, []);
 

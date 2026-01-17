@@ -7,7 +7,7 @@ import QRScanner from '../components/Scanner';
 import { useSelector, useDispatch } from 'react-redux';
 import { getContactList, getPendingList, insertPendingUser, insertContactUser,deleteContactUser, replaceData,deleteAllContacts} from '../utils/database';
 import { EventEmitter } from 'expo';
-import * as FileSystem from 'expo-file-system';
+import {File,Directory,Paths} from 'expo-file-system';
 import { useNavigation } from '@react-navigation/native';
 import { deleteContactFile,checkIfFileExists } from '../utils/fileManipulation';
 
@@ -28,9 +28,9 @@ export default function HomeScreen() {
   const navigation = useNavigation();
   const dispatch = useDispatch();
 
-  async function saveImageToFileSystem(imageUri, filePath) {
+  async function saveImageToFileSystem(fileName,imageUrl,pendingPath = false) {
     try {
-      const directoryPath = FileSystem.documentDirectory + filePath.substring(0, filePath.lastIndexOf('/'));
+      /*const directoryPath = FileSystem.documentDirectory + filePath.substring(0, filePath.lastIndexOf('/'));
       const filePathFull = FileSystem.documentDirectory + filePath;
       const dirInfo = await FileSystem.getInfoAsync(directoryPath);
       if (!dirInfo.exists) {
@@ -50,17 +50,53 @@ export default function HomeScreen() {
       });
       console.log('Image saved to file system:', filePathFull);
       return filePathFull;
+      */
+      const userDirectory = Directory(Paths.document);
+      var imageDirectory;
+      if (pendingPath) imageDirectory = new Directory(userDirectory,"pendingListProfilePics");
+      else imageDirectory = new Directory(userDirectory,"contactListProfilePics");
+      const imagePath = new File(imageDirectory,fileName);
+      const output = await imagePath.downloadFileAsync(imageUrl);
+      console.log("File saved to -- ",output.uri);
+      return output.uri;
     } catch (error) {
       console.error('Error saving image to file system:', error);
     }
   }
 
+  
+  function printDirectory(dir,indent) {
+    const contents = dir.list();
+    for (const item of contents) {
+      if (item instanceof Directory) {
+        printDirectory(item, indent + 2);
+      } 
+      else {
+        console.log(`${' '.repeat(indent + 2)} - ${item.uri} (${item.size} bytes)`);
+      }
+    }
+  }
+
+  function listDir(){
+    const dir = new Directory(Paths.document,"user");
+    printDirectory(dir,0);
+  }
+
+  function clearAllData(){
+    const dir = new Directory(Paths.document);
+    const contents = dir.list();
+    for (const content of contents){
+      console.log("Deleting ..",content);
+      content.delete();
+    }
+  }
+
+
   useEffect(() => {
-    console.log(userObject)
     if (!isConnected){
       const token = userObject.user.token;
       console.log("Token is",token);
-      const newSocket = io('https://swapkard.onrender.com',{auth:{token:token}});
+      const newSocket = io('http://10.50.52.157:2000',{auth:{token:token}});
       
       setIsConnected(true);
       setSocket(newSocket);
@@ -74,7 +110,7 @@ export default function HomeScreen() {
         try{
           const requestUser = data.user;
           const { _id } = requestUser;
-          await saveImageToFileSystem(requestUser.avatar,`userpendingList/profilePics/${_id}_profile_pic.jpg`);
+          await saveImageToFileSystem(`${_id}_profile_pic.jpg`,requestUser.avatar,true);
           eventEmitter.emit('requestReceived',data.user);
           insertPendingUser(
             requestUser._id,
@@ -97,7 +133,7 @@ export default function HomeScreen() {
         try{
           const requestUser = data.accepter;
           const { _id } = requestUser;
-          saveImageToFileSystem(requestUser.avatar,`usercontactList/profilePics/${_id}_profile_pic.jpg`);
+          saveImageToFileSystem(`${_id}_profile_pic.jpg`,requestUser.avatar,false);
           await insertContactUser(
             requestUser._id,
             requestUser.name,
@@ -142,15 +178,15 @@ export default function HomeScreen() {
 
       const loadProfilePic = async () => {
         try {
-          console.log(userObject.user.id);
-          const path = FileSystem.documentDirectory + `userUser/profilePics/${userObject.user.id}_profile_pic.jpg`;
-          const fileInfo = await FileSystem.getInfoAsync(path);
-          if (fileInfo.exists) setProfilePicUri(fileInfo.uri);
-          else console.log('Profile picture not found at:', path);
+          const directory = new Directory(Paths.document,"user/profilePics");
+          const profile_pic = new File(directory,`${userObject.user.id}_profile_pic.jpg`);
+          console.log(profile_pic);
+          if (profile_pic.exists) setProfilePicUri(profile_pic.uri);
+          else console.log('Profile picture not found at:',profile_pic.uri);
         } 
         catch (error) {console.error('Error loading profile pic:', error);}
       };
-      
+
       const loadPic = async () => { await loadProfilePic(); }
       loadPic();
     }
@@ -210,7 +246,7 @@ export default function HomeScreen() {
 
           <TouchableOpacity  
             onPress={() => { navigation.navigate("EditPage", { socket }) }}
-            style={styles.profilePic}
+            style = {styles.profilePicContainer}
           >
             <Image
               source={{ uri: profilePicUri }}
@@ -267,14 +303,6 @@ export default function HomeScreen() {
             </View>
           )}
         </View>
-
-        <Button title="Debugger" onPress={debuggerFunction}>
-           <Text>Debugger</Text>
-        </Button>
-
-        <Button title="Clear" onPress={clearAll}>
-           <Text>Clear</Text>
-        </Button>
       </View>
     </TouchableWithoutFeedback>
   );
@@ -364,5 +392,12 @@ const styles = StyleSheet.create({
     marginLeft: 'auto',
     borderWidth: 2,
     borderColor: '#fff',
-  },  
+  },
+  profilePicContainer:{
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginLeft: 'auto',
+  }
 });
+

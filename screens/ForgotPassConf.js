@@ -23,7 +23,7 @@ export default function ForgotPasswordConfirmation({route}) {
             }}
             onSubmit={async(values) => {
               try {
-                const res = await axios.post(`http://10.10.209.128:2000/api/v1/resetPasswordMobile`,
+                const res = await axios.post(`http://10.50.52.157:2000/api/v1/resetPasswordMobile`,
                   {
                     email: email,
                     password: values.password,
@@ -37,7 +37,8 @@ export default function ForgotPasswordConfirmation({route}) {
                 if (res.data.success) {
                   alert("Password updated successfully");
                   navigation.navigate('LoginScreen');
-                } else {
+                } 
+                else {
                   console.log(res.message);
                   alert("Profile not created " + res.message);
                 }

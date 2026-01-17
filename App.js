@@ -10,6 +10,7 @@ import HomeScreen from './screens/HomeScreen';
 import PendingUsersPage from './components/pendingList';
 import ContactsPage from './components/contactList';
 import EditProfileScreen from './screens/EditProfile';
+import OtpVerificationScreen from './screens/OtpVerificationScreen';
 
 
 const Stack = createStackNavigator();
@@ -22,6 +23,7 @@ export default function App() {
          <Stack.Screen name="SignUp" component={SignUpScreen} />
          <Stack.Screen name="ProfilePic" component={ProfilePic} />
          <Stack.Screen name="Details" component={Details} />
+         <Stack.Screen name="OtpVerification" component={OtpVerificationScreen} />
          <Stack.Screen name="ForgotPassword" component={ForgotPassword} />
          <Stack.Screen name="ForgotPasswordConfirmation" component={ForgotPasswordConfirmation} />
          <Stack.Screen name="HomeScreen" component={HomeScreen} />

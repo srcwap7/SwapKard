@@ -1,10 +1,10 @@
 import React, { useState, useRef } from 'react';
-import { Text, View, TextInput, TouchableOpacity, StyleSheet, ScrollView, Dimensions } from 'react-native';
+import { Text, View, TextInput, TouchableOpacity, StyleSheet, ScrollView, Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
 import { Formik } from 'formik';
 import { useNavigation } from '@react-navigation/native';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
-import * as FileSystem from 'expo-file-system';
+import {File,Directory,Paths} from 'expo-file-system';
 import { initializeDatabase } from '../utils/database';
 import { CelebrationModal } from '../components/congratulations';
 import { CountryPicker } from "react-native-country-codes-picker";
@@ -14,9 +14,10 @@ import { useDispatch } from 'react-redux';
 export default function Details({ route }) {
   const nameRef = useRef(route.params.name);
   const emailRef = useRef(route.params.email);
-  const passwordRef = useRef(route.params.password);  
+  const passwordRef = useRef(route.params.password);
   const tokenRef = useRef(route.params.token);
   const cloudinaryRef = useRef(route.params.cloudinary);
+  const uriRef = useRef(route.params.uri);
   const [show, setShow] = useState(false);
   const navigation = useNavigation();
   const dispatch = useDispatch();
@@ -25,23 +26,28 @@ export default function Details({ route }) {
   const [showCelebration, setShowCelebration] = useState(false);
   const userId = useRef('');
 
-  const saveImage = async (fileName,base64Content) => {
+  const saveImage = async (fileName,base64Content,profile = false) => {
     try {
-      const userDirectory = `${FileSystem.documentDirectory}user/`;
-      const filePath = `${userDirectory}${fileName}`;
-      const dirInfo = await FileSystem.getInfoAsync(userDirectory);
-      if (!dirInfo.exists) await FileSystem.makeDirectoryAsync(userDirectory, { intermediates: true });
-      const cleanBase64Content = base64Content.replace(/^data:image\/\w+;base64,/, '');
-      await FileSystem.writeAsStringAsync(filePath,cleanBase64Content,{encoding: FileSystem.EncodingType.Base64,});
+      const userDirectory = new Directory(Paths.document,"user");
+      if (!userDirectory.exists) userDirectory.create();
+      var filePath;
+      if (profile) {
+        const profilePath = new Directory(userDirectory,"profilePics");
+        if (!profilePath.exists) profilePath.create();
+        filePath = new File(profilePath,fileName);
+      } else {
+        filePath = new File(userDirectory,fileName);
+      }
+      const cleanBase64Content = base64Content.replace(/^data:image\/\w+;base64,/,'');
+      filePath.write(cleanBase64Content,{encoding:"base64"});
       console.log('File saved to:', filePath);
       return filePath;
-
     } catch (error) {
-        console.error('Error saving file:', error);
-        alert('Disk full or other error occurred while saving file.');
+      console.error('Error saving file:', error);
+      alert('Disk full or other error occurred while saving file.');
+      throw error;
     }
   };
-
 
   const saveSecureData = async () => {
     try {
@@ -54,7 +60,6 @@ export default function Details({ route }) {
           userId: userId.current,
           profilePicUrl: cloudinaryRef.current,
           isLoggedIn: keepLoggedIn,
-          token: tokenRef.current,
           hasSignedUp:true,
           phone:phone
         })
@@ -77,13 +82,19 @@ export default function Details({ route }) {
   );
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.headerContainer}>
-        <Text style={styles.headerText}>Complete Your Profile</Text>
-        <Text style={styles.subHeaderText}>Let's get to know you better</Text>
-      </View>
-      
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+    >
+      <ScrollView 
+        contentContainerStyle={styles.scrollContainer}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.headerContainer}>
+          <Text style={styles.headerText}>Complete Your Profile</Text>
+          <Text style={styles.subHeaderText}>Let's get to know you better</Text>
+        </View>
         <Formik
           initialValues={{ Role: '', WorksAt: '', phoneNo: '', website: '', age: '', countryCode: '' }}
           validate={(values) => {
@@ -100,7 +111,7 @@ export default function Details({ route }) {
               setPhone(`${values.countryCode}${values.phoneNo}`);
               initializeDatabase();
               const res = await axios.post(
-                `http://10.10.209.128:2000/api/v1/details`,
+                `http://10.50.52.157:2000/api/v1/details`,
                 {
                   name: nameRef.current,
                   email: emailRef.current,
@@ -119,14 +130,18 @@ export default function Details({ route }) {
               );
               if (res.data.success) {
                 userId.current = res.data.userId;
+                res.data.user.token = res.data.token;
                 saveSecureData();
                 const userBroadcastQR = res.data.qrBroadcast;
                 const userPrivateQR = res.data.qrPrivate;
+                saveImage(`${userId.current}_profile_pic.jpg`,new File(uriRef.current).base64Sync(),true);
                 saveImage(userId.current + '_broadcast.png', userBroadcastQR);
                 saveImage(userId.current + '_private.png', userPrivateQR);
                 dispatch({type:'SET_USER',payload:res.data.user});
+                console.log(res.data.user);
                 setShowCelebration(true);
-              } else {
+              } 
+              else{
                 console.log(res.message);
                 alert('Profile not created ' + res.message);
               }
@@ -149,7 +164,6 @@ export default function Details({ route }) {
                 placeholder="e.g., Software Engineer"
               />
               {touched.Role && errors.Role && <Text style={styles.errorText}>{errors.Role}</Text>}
-
               <InputField
                 label="Workplace"
                 value={values.WorksAt}
@@ -158,12 +172,11 @@ export default function Details({ route }) {
                 placeholder="e.g., Google"
               />
               {touched.WorksAt && errors.WorksAt && <Text style={styles.errorText}>{errors.WorksAt}</Text>}
-
               <View style={styles.phoneContainer}>
                 <Text style={styles.label}>Phone Number</Text>
                 <View style={styles.phoneInputWrapper}>
-                  <TouchableOpacity 
-                    onPress={() => setShow(true)} 
+                  <TouchableOpacity
+                    onPress={() => setShow(true)}
                     style={styles.countryCodeButton}
                   >
                     <Text style={styles.countryCodeText}>
@@ -182,7 +195,6 @@ export default function Details({ route }) {
                 </View>
               </View>
               {touched.phoneNo && errors.phoneNo && <Text style={styles.errorText}>{errors.phoneNo}</Text>}
-
               <InputField
                 label="Website"
                 value={values.website}
@@ -190,7 +202,6 @@ export default function Details({ route }) {
                 onChangeText={handleChange('website')}
                 placeholder="www.yourwebsite.com"
               />
-
               <InputField
                 label="Age"
                 value={values.age}
@@ -199,22 +210,16 @@ export default function Details({ route }) {
                 placeholder="Your age"
                 keyboardType="numeric"
               />
-
               <View style={styles.section}>
                 <Checkbox style={[styles.checkbox, { marginRight: 8 }]} value={keepLoggedIn} onValueChange={setKeepLoggedIn} />
                 <Text style={styles.label}>Keep me Logged In</Text>
               </View>
-
-    
-              <TouchableOpacity 
-                style={styles.submitButton} 
+              <TouchableOpacity
+                style={styles.submitButton}
                 onPress={handleSubmit}
               >
-              
                 <Text style={styles.submitButtonText}>Complete Profile</Text>
-              
               </TouchableOpacity>
-
               {show && (
                 <CountryPicker
                   show={show}
@@ -232,16 +237,15 @@ export default function Details({ route }) {
             </View>
           )}
         </Formik>
+        <CelebrationModal
+          isVisible={showCelebration}
+          onClose={() => {
+            setShowCelebration(false);
+            navigation.navigate('HomeScreen');
+          }}
+        />
       </ScrollView>
-      <CelebrationModal 
-        isVisible={showCelebration}
-        onClose={() => {
-          setShowCelebration(false);
-
-          navigation.navigate('HomeScreen');
-        }}
-      />
-    </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -251,7 +255,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
   },
   headerContainer: {
-    padding: 20,
     paddingTop: 40,
   },
   headerText: {
@@ -266,7 +269,7 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flexGrow: 1,
-    padding: 20,
+    paddingHorizontal: 20,
   },
   formContainer: {
     width: '100%',

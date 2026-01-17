@@ -11,7 +11,7 @@ const ProfileCard = ({id,name,job,workAt,phoneNo,cloudinary,email,socket,age}) =
   const cardWidth = screenWidth - 32;
   const imageSize = 100;
   const User = useSelector((state)=>state.user);
-  const imageUri = `${FileSystem.documentDirectory}userpendingList/profilePics/${id}_profile_pic.jpg`;
+  const imageUri = `${FileSystem.documentDirectory}user/pendingList/profilePics/${id}_profile_pic.jpg`;
   const dispatch = useDispatch();
   console.log(imageUri);
 

@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import axios from 'axios';
 import { Camera } from 'lucide-react-native';
+import { File, Directory, Paths} from 'expo-file-system';
 
 export default function ProfilePic({route}) {
   const { email, name, password, token } = route.params;
@@ -12,9 +13,7 @@ export default function ProfilePic({route}) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isImagePicking, setIsImagePicking] = useState(false);
-
   const spinValue = new Animated.Value(0);
-
 
   const startSpinAnimation = () => {
     Animated.loop(
@@ -99,7 +98,7 @@ export default function ProfilePic({route}) {
       }, 'profilePicture.jpg');
   
       const res = await axios.post(
-        `http://10.10.209.128:2000/api/v1/uploadProfilePic`,
+        `http://10.50.52.157:2000/api/v1/uploadProfilePic`,
         formData,
         {
           headers: {
@@ -123,17 +122,20 @@ export default function ProfilePic({route}) {
         setUploadProgress(100);
         await new Promise(resolve => setTimeout(resolve, 500));
         navigation.navigate('Details', {
-          cloudinary: res.data.fileUrl,
+          cloudinary:res.data.fileUrl,
           email: email,
           name: name,
           password: password,
           token: token,
+          uri: imageUri
         });
       }
-    } catch (error) {
+    } 
+    catch (error) {
       const message = error.response?.data?.message || 'Error uploading image';
       alert('Error uploading image: ' + message);
-    } finally {
+    } 
+    finally {
       setIsUploading(false);
       spinValue.setValue(0);
     }

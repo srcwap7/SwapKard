@@ -94,7 +94,6 @@ exports.registerUserMobile = async(req,res,next) => {
             randomHash: privateQRSalt,
         });
 
-
         const qrCodedataA = JSON.stringify({
             id: user1._id,
             type: 1,
@@ -104,7 +103,8 @@ exports.registerUserMobile = async(req,res,next) => {
         const qrCodeA = await qrcode.toDataURL(qrCodedataA);
         const qrCodeB = await qrcode.toDataURL(qrCodedataB);
 
-        const token = JWT.sign({ id: user1._id, email: user1.email }, process.env.JWT_SECRET, { expiresIn: '200h' });
+        const token = JWT.sign({id: user1._id, email: user1.email}, process.env.JWT_SECRET, { expiresIn: '200h' });
+        console.log(user1);
         
         return res.status(200).json({
           success: true,
@@ -114,13 +114,13 @@ exports.registerUserMobile = async(req,res,next) => {
           user: user1,
           token: token
         });
-
-    }catch (error) {
+    }
+    catch (error) {
         console.log(error);
         return res.status(500).json({
-            success: false,
-            error: error.message,
-            message: "Internal Server error"
+            success:false,
+            error:error.message,
+            message:"Internal Server error"
         });
     }
 } 
@@ -136,15 +136,12 @@ exports.forgotPasswordMobile = async(req,res,next) => {
                 message:"Invalid email"
             })
         }
-
         const otp = Math.floor(1000 + Math.random() * 9000);
         await sendForgotPassOTP(req,email,otp);
-
         return res.status(200).json({
             success:true,
             message:"OTP sent successfully"
-        });
-        
+        });        
     }
     catch(error){
         console.log(error);

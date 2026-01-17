@@ -5,13 +5,8 @@ import PinView from '../components/PinView';
 import axios from 'axios';
 
 export default function ForgotPassword() {
-  const [mailSent, setMailSent] = useState(false);
   const [isRunning, setRunning] = useState(false);
   const [seconds, setSeconds] = useState(120);
-  const [counterOver, setCounterOver] = useState(false);
-  const [otpmatched, setOtpmatched] = useState(false);
-  const [email, setEmail] = useState('');
-  const [resetFlag] = useState(true);
 
   useEffect(() => {
     let timer;
@@ -28,12 +23,18 @@ export default function ForgotPassword() {
     try {
       console.log(values);
       setEmail(values.email);
-      const res = await axios.post(`http://10.10.209.128:2000/api/v1/forgotPasswordMobile`,{email:values.email});
-      if (res.status === 200) {
-        setMailSent(true);
-        setRunning(true);
-      }
-    } catch (error) {
+      const res = await axios.post(`http://10.50.52.157:2000/api/v1/forgotPasswordMobile`,{email:values.email});
+      if (res.data.success) {
+        // Navigate to OTP screen with user data
+        navigation.navigate('OtpVerification', {
+          email: values.email,
+          name: values.name,
+          password: values.password,
+          resetFlag:true
+        });
+      } 
+    } 
+    catch (error) {
       const errorMessage = error.response ? error.response.data.message : 'An error occurred';
       alert(errorMessage);
     }
@@ -81,32 +82,6 @@ export default function ForgotPassword() {
                 </View>
               )}
             </Formik>
-          )}
-
-          {mailSent && !otpmatched && (
-            <PinView 
-              setOtpmatched={setOtpmatched}
-              counterOver={counterOver}
-              seconds={seconds}
-              email={email}
-              name={name}
-              password={password}
-              resetFlag={resetFlag}
-            />
-          )}
-
-          {counterOver && mailSent && !otpmatched && (
-            <TouchableOpacity 
-              style={styles.resendButton}
-              onPress={() => {
-                setSeconds(120);
-                setCounterOver(false);
-                setRunning(true);
-                handleResetPassword({ email });
-              }}
-            >
-              <Text style={styles.buttonText}>Resend Code</Text>
-            </TouchableOpacity>
           )}
         </View>
       </ScrollView>

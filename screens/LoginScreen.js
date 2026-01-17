@@ -5,7 +5,8 @@ import { Formik } from 'formik';
 import { useNavigation } from '@react-navigation/native';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
-import * as FileSystem from 'expo-file-system';
+import {Directory,File,Paths} from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy'
 import {
   initializeDatabase,
   getPendingList,
@@ -18,17 +19,18 @@ import {
 import { deleteContactFile } from '../utils/fileManipulation';
 
 // Utility Functions
-const downloadImage = async (imageUrl, directory, id) => {
+const downloadImage = async (imageUrl,dir, id) => {
   try {
-    const directoryUri = `${FileSystem.documentDirectory}user${directory}/profilePics/`;
-    const fileUri = `${directoryUri}${id}_profile_pic.jpg`;
-    const dirInfo = await FileSystem.getInfoAsync(directoryUri);
-    if (!dirInfo.exists) {
-      await FileSystem.makeDirectoryAsync(directoryUri, { intermediates: true });
-    }
-    const { uri } = await FileSystem.createDownloadResumable(imageUrl, fileUri).downloadAsync();
-    return uri;
-  } catch (error) {
+    console.log(dir);
+    const directory = new Directory(Paths.document,`user/${dir}profilePics`);
+    if (!directory.exist) directory.create();
+    console.log(directory);
+    const destination = new File(directory,`${id}_profile_pic.jpg`);
+    const output = await File.downloadFileAsync(imageUrl,destination);
+    console.log(output.uri);
+    return output.uri;
+  } 
+  catch (error) {
     console.error('Error downloading image:', error);
     throw error;
   }
@@ -37,7 +39,7 @@ const downloadImage = async (imageUrl, directory, id) => {
 const downloadImageList = async (array, directory) => {
   if (!array?.length) return;
   await Promise.all(
-    array.map(({ avatar, _id }) => downloadImage(avatar, directory, _id))
+    array.map(({ avatar, _id }) => downloadImage(avatar,directory, _id))
   );
 };
 
@@ -51,30 +53,29 @@ const saveSecureData = async (data, password) => {
         name: data.name,
         userId: data._id,
         profilePicUrl: data.avatar,
-        isLoggedIn: true,
-        token: data.token,
-        hasSignedUp: true,
-        phone: data.phone
+        isLoggedIn:true,
+        hasSignedUp:true,
+        phone:data.phone
       })
     );
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Failed to save data securely:', error);
     alert('Failed to save user credentials');
   }
 };
 
-const saveQRCode = async (fileName, base64Content) => {
+const saveQRCode = async(fileName,base64Content) => {
   try {
-    const userDirectory = `${FileSystem.documentDirectory}user/`;
-    const filePath = `${userDirectory}${fileName}`;
-    const dirInfo = await FileSystem.getInfoAsync(userDirectory);
-    if (!dirInfo.exists) {
-      await FileSystem.makeDirectoryAsync(userDirectory, { intermediates: true });
-    }
+    const userDirectory = new Directory(Paths.document,"user");
+    if (!userDirectory.exists) userDirectory.create();
+    const filePath = new File(userDirectory,fileName);
     const cleanBase64 = base64Content.replace(/^data:image\/\w+;base64,/, '');
-    await FileSystem.writeAsStringAsync(filePath, cleanBase64, { encoding: FileSystem.EncodingType.Base64 });
+    filePath.write(cleanBase64);
+    console.log("QR code saved to ..",filePath.uri);
     return filePath;
-  } catch (error) {
+  } 
+  catch (error) {
     console.error('Error saving QR code:', error);
     alert('Disk full or other error occurred while saving file.');
   }
@@ -121,16 +122,16 @@ export default function LoginScreen() {
 
   const syncUserData = async (userData, currentPendingList, currentContactList) => {
     await Promise.all([
-      downloadImageList(userData.deltaPending, 'pendingList'),
-      downloadImageList(userData.deltaConnection, 'contactList'),
+      downloadImageList(userData.deltaPending,'pendingList'),
+      downloadImageList(userData.deltaConnection,'contactList'),
       updateDetails(userData.eventQueue),
       saveToDatabasePending(userData.deltaPending),
       saveToDatabaseContact(userData.deltaConnection),
       deleteConnections(userData.deletedConnections)
     ]);
-    userData.pendingList = currentPendingList || [];
-    userData.contactList = currentContactList || [];
-    dispatch({ type: 'SET_USER', payload: userData });
+    userData.pendingList = currentPendingList||[];
+    userData.contactList = currentContactList||[];
+    dispatch({type:'SET_USER',payload:userData});
     handleLogin();
   };
 
@@ -142,25 +143,21 @@ export default function LoginScreen() {
           const userData = JSON.parse(storedData);
           if (userData.isLoggedIn) {
             hasPreviousEntry.current = true;
-            const res = await axios.post("http://10.10.209.128:2000/api/v1/loginMobileSignedUp", {
+            const res = await axios.post("http://10.50.52.157:2000/api/v1/loginMobileSignedUp", {
               email: userData.email,
               password: userData.password
             });
             if (res.data.success) {
-              const [currentPendingList, currentContactList] = await Promise.all([
-                getPendingList(),
-                getContactList()
-              ]);
-              await syncUserData({ ...res.data.user, ...userData, token: res.data.token }, currentPendingList, currentContactList);
+              const [currentPendingList, currentContactList] = await Promise.all([getPendingList(),getContactList()]);
+              await syncUserData({ ...res.data.user, ...userData,token:res.data.token}, currentPendingList, currentContactList);
             }
           }
         }
-      } catch (error) {
-        console.error('Error checking logged in user:', error);
-      }
+      } 
+      catch (error) {console.error('Error checking logged in user:', error);}
     };
     checkLoggedInUser();
-  }, []);
+  },[]);
 
   return (
     <View style={{ flex: 1, justifyContent: 'center' }}>
@@ -172,16 +169,16 @@ export default function LoginScreen() {
             initialValues={{ email: '', password: '' }}
             onSubmit={async (values) => {
               try {
-                let endpoint = hasPreviousEntry.current ? "http://10.10.209.128:2000/api/v1/loginMobileSignedUp":"http://10.10.209.128:2000/api/v1/loginMobile";
+                let endpoint = hasPreviousEntry.current ? "http://10.50.52.157:2000/api/v1/loginMobileSignedUp":"http://10.50.52.157:2000/api/v1/loginMobile";
                 const res = await axios.post(endpoint, values);
-                
+
                 if (res.data.success) {
                   const user = res.data.user;
                   user.token = res.data.token;
                   
                   if (!hasPreviousEntry.current) {
                     await initializeDatabase();
-                    await downloadImage(user.avatar, "User", user._id);
+                    await downloadImage(user.avatar,"",user._id);
                     await Promise.all([
                       downloadImageList(user.pendingList,"pendingList"),
                       downloadImageList(user.contactList,"contactList"),
@@ -205,9 +202,7 @@ export default function LoginScreen() {
                   dispatch({ type: 'SET_USER', payload: user });
                   navigation.navigate("HomeScreen");
                 } 
-                else {
-                  alert("Invalid Credentials");
-                }
+                else alert("Invalid Credentials");
               }
               catch (error) {
                 const errorMessage = error.response?.data?.message || 'An error occurred';
@@ -216,17 +211,10 @@ export default function LoginScreen() {
             }}
             validate={(values) => {
               const errors = {};
-              if (!values.email) {
-                errors.email = 'Required';
-              } 
-              else if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i.test(values.email)) {
-                errors.email = 'Invalid email address';
-              }
-              if (!values.password) {
-                errors.password = 'Required';
-              } else if (values.password.length < 6) {
-                errors.password = 'Password must be at least 6 characters';
-              }
+              if (!values.email) errors.email = 'Required';
+              else if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i.test(values.email)) errors.email = 'Invalid email address';
+              if (!values.password) errors.password = 'Required';
+              else if (values.password.length < 6) errors.password = 'Password must be at least 6 characters';
               return errors;
             }}
           >
